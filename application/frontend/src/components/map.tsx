@@ -44,7 +44,9 @@ export default function MapCanvas() {
         map.addSource(cogId, {
           type: 'raster',
           tileSize: 256,
-          tiles: ['/cog/{z}/{x}/{y}?layer=treecover2000&palette=navy,teal,yellow&min=0&max=100'],
+          tiles: [
+            '/cog/{z}/{x}/{y}?layer=treecover2000&palette=indigo,cornflowerblue,teal,lightgreen,gold&min=0&max=100',
+          ],
         });
 
         map.addLayer({

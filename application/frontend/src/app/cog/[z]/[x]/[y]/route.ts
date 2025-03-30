@@ -1,9 +1,9 @@
 import { execute_process } from '@/modules/server_util';
 import { tileToGeoJSON } from '@mapbox/tilebelt';
 import { bbox, booleanIntersects } from '@turf/turf';
+import Color from 'color';
 import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
-import { setTimeout } from 'timers/promises';
 
 // Load tiles collection to filter
 const tiles: GeoJSON.FeatureCollection<any> = await (
@@ -26,9 +26,19 @@ export async function GET(req: NextRequest) {
       .map((x) => Number(x));
 
     const layer = searchParams.get('layer');
-    const palette = searchParams.get('palette').split(',');
+    const palette = searchParams
+      .get('palette')
+      .split(',')
+      .map((color) => Color(color).rgb().array());
     const min = Number(searchParams.get('min'));
     const max = Number(searchParams.get('max'));
+    const interval = Math.abs(min - max) / (palette.length - 1);
+    const colorMap = palette
+      .map((color, index) => `${min + interval * index} ${color.join(' ')}`)
+      .join('\n');
+    // Text file
+    const colorFile = `${tmpFolder}/color.txt`;
+    await writeFile(colorFile, colorMap);
 
     // Generate bbox or bounds to filter imagery
     const polygon = tileToGeoJSON([x, y, z]);
@@ -72,8 +82,26 @@ export async function GET(req: NextRequest) {
       tif,
     ]);
 
+    // Color it with gdaldem
+    const colored = `${tmpFolder}/colored.tif`;
+    await execute_process('gdaldem', [
+      'color-relief',
+      tif,
+      colorFile,
+      colored,
+      '-of',
+      'WEBP',
+      '-b',
+      1,
+    ]);
+
     // Get the alpha band
-    const alpha = `${tmpFolder}/alpha.tif`;
+    const alpha = `${tmpFolder}/alpha.vrt`;
+    await execute_process('gdalbuildvrt', ['-b', 2, '-overwrite', alpha, tif]);
+
+    // Combine with alpha band
+    const withAlpha = `${tmpFolder}/withAlpha.vrt`;
+    await execute_process('gdalbuildvrt', ['-separate', '-overwrite', withAlpha, colored, alpha]);
 
     // Rescale the image
     const rescale = `${tmpFolder}/rescale.webp`;
@@ -82,19 +110,10 @@ export async function GET(req: NextRequest) {
       'WEBP',
       '-ot',
       'Byte',
-      '-b',
-      1,
-      '-b',
-      1,
-      '-b',
-      1,
       '-outsize',
       256,
       256,
-      '-scale',
-      0,
-      100,
-      tif,
+      withAlpha,
       rescale,
     ]);
 
