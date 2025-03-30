@@ -20,4 +20,6 @@ export type MainStore = {
   setLayer: SetState<Option>;
   year: number;
   setYear: SetState<number>;
+  minForestCover: number;
+  setMinForestCover: SetState<number>;
 };

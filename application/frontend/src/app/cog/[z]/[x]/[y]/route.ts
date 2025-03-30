@@ -33,7 +33,6 @@ export async function GET(req: NextRequest) {
       .map((color) => Color(color).rgb().array());
     const min = Number(searchParams.get('min'));
     const max = Number(searchParams.get('max'));
-    const year = Number(searchParams.get('year'));
     const interval = Math.abs(min - max) / (palette.length - 1);
     const colorMap = palette
       .map((color, index) => `${min + interval * index} ${color.join(' ')}`)
@@ -47,17 +46,29 @@ export async function GET(req: NextRequest) {
     const bounds = bbox(polygon);
 
     // Create VRT
-    const vrt = await get_mosaic_vrt(polygon, layer, tmpFolder);
+    const vrt = await get_mosaic_vrt(
+      polygon,
+      layer == 'forest_cover' ? 'treecover2000' : layer,
+      tmpFolder,
+    );
 
     // Create an image
     let tif = await warp_cog(vrt, bounds, layer, tmpFolder);
 
     // Mask the raster if it is treecover2000 or forest cover
     if (layer == 'treecover2000' || layer == 'forest_cover') {
+      const year = Number(searchParams.get('year'));
+
       // Mask non forest based on year
       // Generate forest loss layer
       const forest_loss_vrt = await get_mosaic_vrt(polygon, 'lossyear', tmpFolder);
       const forest_loss_tif = await warp_cog(forest_loss_vrt, bounds, 'lossyear', tmpFolder);
+
+      let formula = `A*logical_or(B==0,B>(${year}-2000))`;
+      if (layer == 'forest_cover') {
+        const min_forest_cover = Number(searchParams.get('min_forest_cover'));
+        formula = `(A>=${min_forest_cover})*logical_or(B==0,B>(${year}-2000))`;
+      }
 
       // Mask image
       const masked_tif = `${tmpFolder}/masked.tif`;
@@ -66,7 +77,7 @@ export async function GET(req: NextRequest) {
         tif,
         '-B',
         forest_loss_tif,
-        `--calc="A*logical_or(B==0,B>(${year}-2000))"`,
+        `--calc="${formula}"`,
         `--outfile=${masked_tif}`,
         '--overwrite',
         '--hideNoData',

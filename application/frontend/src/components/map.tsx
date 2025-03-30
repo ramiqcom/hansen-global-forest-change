@@ -5,7 +5,7 @@ import { useContext, useEffect, useState } from 'react';
 
 export default function MapCanvas() {
   // All the stored states
-  const { map, setMap, geojson, setStatus, year, layer } = useContext(Store);
+  const { map, setMap, geojson, setStatus, year, layer, minForestCover } = useContext(Store);
 
   const [mapLoaded, setMapLoaded] = useState(false);
 
@@ -51,6 +51,18 @@ export default function MapCanvas() {
   useEffect(() => {
     if (mapLoaded && map) {
       const source = map.getSource(cogId) as RasterTileSource;
+      let mapQuery = `cog/{z}/{x}/{y}?layer=${layer.value}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`;
+
+      // Additional query
+      if (layer.value == 'forest_cover' || layer.value == 'treecover2000') {
+        mapQuery = `${mapQuery}&year=${year}`;
+      }
+
+      if (layer.value == 'forest_cover') {
+        mapQuery = `${mapQuery}&min_forest_cover=${minForestCover}`;
+      }
+
+      // Change or add layers
       if (source) {
         source.setTiles([
           `cog/{z}/{x}/{y}?layer=${layer.value}&year=${year}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`,
@@ -72,7 +84,7 @@ export default function MapCanvas() {
         });
       }
     }
-  }, [map, mapLoaded, layer, year]);
+  }, [mapLoaded, layer, year]);
 
   // // Load geojson to map if it is not null;
   // useEffect(() => {

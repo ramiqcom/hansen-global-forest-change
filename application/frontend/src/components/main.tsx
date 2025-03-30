@@ -16,6 +16,7 @@ export default function Main() {
 
   const [layer, setLayer] = useState(layers[0]);
   const [year, setYear] = useState(new Date().getFullYear() - 1);
+  const [minForestCover, setMinForestCover] = useState(50)
 
   const states = {
     map,
@@ -29,6 +30,8 @@ export default function Main() {
     setLayer,
     year,
     setYear,
+    minForestCover,
+    setMinForestCover,
   };
 
   return (

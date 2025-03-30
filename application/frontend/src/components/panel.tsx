@@ -23,7 +23,8 @@ export default function Panel() {
 }
 
 function Layers() {
-  const { layer, setLayer, year, setYear, layers } = useContext(Store);
+  const { layer, setLayer, year, setYear, layers, minForestCover, setMinForestCover } =
+    useContext(Store);
   const selectLayers = layers.map((dict, key) => (
     <button
       disabled={layer.value == dict.value}
@@ -51,14 +52,34 @@ function Layers() {
           className='flexible center2 center1 center3'
           style={{
             border: 'thin solid white',
-            width: '5vh',
+            width: '10vh',
             height: '3vh',
             textAlign: 'center',
           }}
         >
-          {year}
+          Year: {year}
         </div>
         <div>2024</div>
+      </div>
+    </div>
+  );
+
+  const forestCoverDrag = (
+    <div className='flexible wide center1'>
+      Minimum tree density
+      <div className='flexible vertical' style={{ width: '100%' }}>
+        <input
+          disabled={layer.value != 'forest_cover'}
+          type='range'
+          min={1}
+          max={99}
+          value={minForestCover}
+          onChange={(e) => setMinForestCover(Number(e.target.value))}
+        />
+        <div className='flexible wide'>
+          <div>1</div>
+          <div>99</div>
+        </div>
       </div>
     </div>
   );
@@ -68,6 +89,7 @@ function Layers() {
       Select layer to show to the map
       <div className='flexible wide'>{selectLayers}</div>
       {layer.value != 'lossyear' ? yearDrag : null}
+      {layer.value == 'forest_cover' ? forestCoverDrag : null}
     </div>
   );
 }
