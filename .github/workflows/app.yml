@@ -92,6 +92,4 @@ jobs:
             --memory 32Gi \
             --port 3000 \
             --allow-unauthenticated \
-            --max-instances 100 \
-            --min-instances 1 \
             --update-env-vars STADIA_API_KEY=${{env.STADIA_API_KEY}},HANSEN_TILES_COLLECTION=${{env.HANSEN_TILES_COLLECTION}},HANSEN_LAYER_PREFIX=${{env.HANSEN_LAYER_PREFIX}}
