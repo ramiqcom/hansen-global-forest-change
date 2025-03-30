@@ -4,16 +4,16 @@ import { booleanIntersects } from '@turf/turf';
 import { writeFile } from 'fs/promises';
 import { execute_process } from './server_util';
 
-// Load tiles collection to filter
-const tiles: GeoJSON.FeatureCollection<any> = await (
-  await fetch(process.env.HANSEN_TILES_COLLECTION)
-).json();
-
-// Hansen layer prefix
-const hansen_prefix = process.env.HANSEN_LAYER_PREFIX;
-
 // Function to mosaic layer
 export async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tmpFolder: string) {
+  // Load tiles collection to filter
+  const tiles: GeoJSON.FeatureCollection<any> = await (
+    await fetch(process.env.HANSEN_TILES_COLLECTION)
+  ).json();
+
+  // Hansen layer prefix
+  const hansen_prefix = process.env.HANSEN_LAYER_PREFIX;
+
   // Get the layer url
   const image_urls = tiles.features
     .filter((feat) => booleanIntersects(feat, polygon))
