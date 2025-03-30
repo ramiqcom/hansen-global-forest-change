@@ -18,6 +18,7 @@ next-env.d.ts
 *.vrt*
 *.xlsx*
 *.parquet*
+*.webp*
 
 color.txt
 image_list.txt
