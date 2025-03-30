@@ -55,6 +55,9 @@ env:
   APP: hansen-global-forest-change
   REGION: ${{ vars.REGION }} # TODO: update Cloud Run service region
   PROJECT_ID: ${{ vars.PROJECT_ID }}
+  STADIA_API_KEY: ${{ vars.STADIA_API_KEY }}
+  HANSEN_TILES_COLLECTION: ${{ vars.HANSEN_TILES_COLLECTION }}
+  HANSEN_LAYER_PREFIX: ${{ vars.HANSEN_LAYER_PREFIX }}
 
 jobs:
   deploy-to-cloud-run:
@@ -83,9 +86,12 @@ jobs:
       - name: "Deploy to Cloud Run"
         run: |
           gcloud run deploy ${{ env.APP }} \
-            --source="./application/frontend" \
-            --region=${{ env.REGION }} \
-            --cpu=8 \
-            --memory=32Gi \
-            --port=3000 \
-            --allow-unauthenticated
+            --source "./application/frontend" \
+            --region ${{ env.REGION }} \
+            --cpu 8 \
+            --memory 32Gi \
+            --port 3000 \
+            --allow-unauthenticated \
+            --max-instances 100 \
+            --min-instances 1 \
+            --update-env-vars STADIA_API_KEY=${{env.STADIA_API_KEY}},HANSEN_TILES_COLLECTION=${{env.HANSEN_TILES_COLLECTION}},HANSEN_LAYER_PREFIX=${{env.HANSEN_LAYER_PREFIX}}
