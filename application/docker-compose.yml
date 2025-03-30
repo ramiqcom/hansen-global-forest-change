@@ -1,0 +1,10 @@
+services:
+  hansen-global-forest-change:
+    platform: linux/amd64
+    ports:
+      - 3000:3000
+    build: ./frontend
+    env_file:
+      - ./frontend/.env
+    cpu_count: 8
+    mem_limit: 32g
