@@ -1,6 +1,5 @@
 import { Store } from '@/modules/store';
-import { FeatureCollection } from 'geojson';
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 export default function Panel() {
   const { status } = useContext(Store);
 
@@ -8,7 +7,7 @@ export default function Panel() {
     <div id='panel' className='flexible vertical gap'>
       <div className='title'>Hansen Global Forest Change</div>
       <Layers />
-      <UploadFile />
+      <Legend />
       <div
         style={{
           textAlign: 'center',
@@ -35,7 +34,7 @@ function Layers() {
       {dict.label}
     </button>
   ));
-
+  const [tempYear, setTempYear] = useState(year);
   const yearDrag = (
     <div className='flexible vertical'>
       <input
@@ -44,7 +43,8 @@ function Layers() {
         min={2000}
         max={2024}
         value={year}
-        onChange={(e) => setYear(Number(e.target.value))}
+        onMouseUp={() => setYear(year)}
+        onChange={(e) => setTempYear(Number(e.target.value))}
       />
       <div className='flexible wide'>
         <div>2000</div>
@@ -64,6 +64,7 @@ function Layers() {
     </div>
   );
 
+  const [tempForestCover, setTempForestCover] = useState(minForestCover);
   const forestCoverDrag = (
     <div className='flexible wide center1'>
       Minimum tree density
@@ -74,7 +75,8 @@ function Layers() {
           min={1}
           max={99}
           value={minForestCover}
-          onChange={(e) => setMinForestCover(Number(e.target.value))}
+          onMouseUp={() => setMinForestCover(minForestCover)}
+          onChange={(e) => setTempForestCover(Number(e.target.value))}
         />
         <div className='flexible wide'>
           <div>1</div>
@@ -94,33 +96,76 @@ function Layers() {
   );
 }
 
-function UploadFile() {
-  const { setGeojson, setStatus, status } = useContext(Store);
+// Legend
+function Legend() {
+  const { layer } = useContext(Store);
+  const { min, max, palette, label, value } = layer;
 
-  return (
-    <div className='flexible vertical small-gap'>
-      1. Upload your region of interest in geojson format
-      <input
-        type='file'
-        accept='.geojson,.json'
-        disabled={status.type == 'process'}
-        onChange={async (e) => {
-          // Parse geojson from uploaded file
-          try {
-            setStatus({ message: 'Loading GeoJSON file...', type: 'process' });
-            const file = e.target.files[0];
+  let legend: JSX.Element;
+  if (value != 'forest_cover') {
+    legend = (
+      <div className='flexible vertical'>
+        <div
+          style={{
+            width: '100%',
+            height: '2vh',
+            backgroundImage: `linear-gradient(to right, ${palette.join(', ')})`,
+            border: 'thin solid white',
+          }}
+        />
+        <div className='flexible wide'>
+          <div>{value == 'lossyear' ? min + 2000 : min}</div>
+          <div>{value == 'lossyear' ? `${label} year` : label}</div>
+          <div>{value == 'lossyear' ? max + 2000 : max}</div>
+        </div>
+      </div>
+    );
+  } else {
+    legend = (
+      <div className='flexible gap center1'>
+        <div
+          style={{
+            width: '5vh',
+            height: '2vh',
+            backgroundColor: palette[0],
+            border: 'thin solid white',
+          }}
+        />
+        {label}
+      </div>
+    );
+  }
 
-            const geojson: FeatureCollection<any, { [name: string]: any }> = JSON.parse(
-              await file.text(),
-            );
-
-            setGeojson(geojson);
-            setStatus({ message: 'GeoJSON loaded', type: 'success' });
-          } catch ({ message }) {
-            setStatus({ message, type: 'failed' });
-          }
-        }}
-      />
-    </div>
-  );
+  return legend;
 }
+
+// function UploadFile() {
+//   const { setGeojson, setStatus, status } = useContext(Store);
+
+//   return (
+//     <div className='flexible vertical small-gap'>
+//       1. Upload your region of interest in geojson format
+//       <input
+//         type='file'
+//         accept='.geojson,.json'
+//         disabled={status.type == 'process'}
+//         onChange={async (e) => {
+//           // Parse geojson from uploaded file
+//           try {
+//             setStatus({ message: 'Loading GeoJSON file...', type: 'process' });
+//             const file = e.target.files[0];
+
+//             const geojson: FeatureCollection<any, { [name: string]: any }> = JSON.parse(
+//               await file.text(),
+//             );
+
+//             setGeojson(geojson);
+//             setStatus({ message: 'GeoJSON loaded', type: 'success' });
+//           } catch ({ message }) {
+//             setStatus({ message, type: 'failed' });
+//           }
+//         }}
+//       />
+//     </div>
+//   );
+// }

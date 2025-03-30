@@ -18,6 +18,6 @@
     "value": "lossyear",
     "min": 1,
     "max": 23,
-    "palette": ["blue", "cyan", "green", "yellow", "red"]
+    "palette": ["indigo", "blue", "cyan", "green", "yellow", "orange", "red"]
   }
 ]

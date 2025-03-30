@@ -6,14 +6,6 @@ import Color from 'color';
 import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
 
-// Load tiles collection to filter
-const tiles: GeoJSON.FeatureCollection<any> = await (
-  await fetch(process.env.HANSEN_TILES_COLLECTION)
-).json();
-
-// Hansen layer prefix
-const hansen_prefix = process.env.HANSEN_LAYER_PREFIX;
-
 export async function GET(req: NextRequest) {
   // Temporary directory
   const tmpFolder = await mkdtemp('temp_');
@@ -33,6 +25,8 @@ export async function GET(req: NextRequest) {
       .map((color) => Color(color).rgb().array());
     const min = Number(searchParams.get('min'));
     const max = Number(searchParams.get('max'));
+
+    // Generate color data
     const interval = Math.abs(min - max) / (palette.length - 1);
     const colorMap = palette
       .map((color, index) => `${min + interval * index} ${color.join(' ')}`)
@@ -95,6 +89,7 @@ export async function GET(req: NextRequest) {
       `--outfile=${alpha}`,
       `--calc="(A!=0)*255"`,
       '--type=Byte',
+      '--hideNoData',
     ]);
 
     // Color it with gdaldem
@@ -144,15 +139,3 @@ export async function GET(req: NextRequest) {
     await rm(tmpFolder, { recursive: true, force: true });
   }
 }
-
-// await execute_process(`gdalwarp \
-//               -te ${bounds[0]} ${bounds[1]} ${bounds[2]} ${bounds[3]} \
-//               -ts 256 256 \
-//               -t_srs EPSG:4326 \
-//               -overwrite \
-//               -wm 8G \
-//               -multi \
-//               -wo NUM_THREADS=ALL_CPUS \
-//               ${source_path} \
-//               ${target_path}
-//             `);

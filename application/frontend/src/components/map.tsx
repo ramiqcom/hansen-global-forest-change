@@ -64,17 +64,13 @@ export default function MapCanvas() {
 
       // Change or add layers
       if (source) {
-        source.setTiles([
-          `cog/{z}/{x}/{y}?layer=${layer.value}&year=${year}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`,
-        ]);
+        source.setTiles([mapQuery]);
       } else {
         // When the map is fully loaded, load the hansen forest cover data
         map.addSource(cogId, {
           type: 'raster',
           tileSize: 256,
-          tiles: [
-            `cog/{z}/{x}/{y}?layer=${layer.value}&year=${year}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`,
-          ],
+          tiles: [mapQuery],
         });
 
         map.addLayer({
@@ -84,7 +80,7 @@ export default function MapCanvas() {
         });
       }
     }
-  }, [mapLoaded, layer, year]);
+  }, [mapLoaded, layer, year, minForestCover]);
 
   // // Load geojson to map if it is not null;
   // useEffect(() => {
