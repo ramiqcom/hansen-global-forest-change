@@ -24,6 +24,9 @@ export default function MapCanvas() {
         minZoom: 1,
         zoom: 8,
         style: {
+          projection: {
+            type: "globe"
+          },
           version: 8,
           sources: {
             basemap: {
