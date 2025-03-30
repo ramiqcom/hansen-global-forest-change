@@ -1,12 +1,11 @@
 import { Store } from '@/modules/store';
-import { bbox } from '@turf/turf';
-import { GeoJSONSource, Map } from 'maplibre-gl';
+import { Map, RasterTileSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useContext, useEffect, useState } from 'react';
 
 export default function MapCanvas() {
   // All the stored states
-  const { map, setMap, geojson, setStatus } = useContext(Store);
+  const { map, setMap, geojson, setStatus, year, layer } = useContext(Store);
 
   const [mapLoaded, setMapLoaded] = useState(false);
 
@@ -25,7 +24,7 @@ export default function MapCanvas() {
         zoom: 8,
         style: {
           projection: {
-            type: "globe"
+            type: 'globe',
           },
           version: 8,
           sources: {
@@ -42,13 +41,27 @@ export default function MapCanvas() {
       map.on('load', () => {
         setMapLoaded(true);
         setStatus({ message: 'Map loaded', type: 'success' });
+      });
+    } catch ({ message }) {
+      setStatus({ message, type: 'failed' });
+    }
+  }, []);
 
+  // Change layer
+  useEffect(() => {
+    if (mapLoaded && map) {
+      const source = map.getSource(cogId) as RasterTileSource;
+      if (source) {
+        source.setTiles([
+          `cog/{z}/{x}/{y}?layer=${layer.value}&year=${year}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`,
+        ]);
+      } else {
         // When the map is fully loaded, load the hansen forest cover data
         map.addSource(cogId, {
           type: 'raster',
           tileSize: 256,
           tiles: [
-            '/cog/{z}/{x}/{y}?layer=treecover2000&palette=indigo,cornflowerblue,teal,lightgreen,gold&min=0&max=100',
+            `cog/{z}/{x}/{y}?layer=${layer.value}&year=${year}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`,
           ],
         });
 
@@ -57,45 +70,43 @@ export default function MapCanvas() {
           id: cogId,
           type: 'raster',
         });
-      });
-    } catch ({ message }) {
-      setStatus({ message, type: 'failed' });
-    }
-  }, []);
-
-  // Load geojson to map if it is not null;
-  useEffect(() => {
-    if (mapLoaded && geojson) {
-      try {
-        setStatus({ message: 'Adding geojson to map...', type: 'process' });
-        const geojsonSource = map.getSource(geojsonSourceId) as GeoJSONSource;
-        if (geojsonSource) {
-          geojsonSource.setData(geojson);
-        } else {
-          map.addSource(geojsonSourceId, {
-            type: 'geojson',
-            data: geojson,
-          });
-          map.addLayer({
-            source: geojsonSourceId,
-            id: geojsonSourceId,
-            type: 'line',
-            paint: {
-              'line-color': 'red',
-              'line-width': 2,
-            },
-          });
-        }
-
-        const bounds = bbox(geojson);
-        map.fitBounds(bounds as [number, number, number, number]);
-
-        setStatus({ message: 'GeoJSON added to map', type: 'success' });
-      } catch ({ message }) {
-        setStatus({ message, type: 'failed' });
       }
     }
-  }, [map, mapLoaded, geojson]);
+  }, [map, mapLoaded, layer, year]);
+
+  // // Load geojson to map if it is not null;
+  // useEffect(() => {
+  //   if (mapLoaded && geojson) {
+  //     try {
+  //       setStatus({ message: 'Adding geojson to map...', type: 'process' });
+  //       const geojsonSource = map.getSource(geojsonSourceId) as GeoJSONSource;
+  //       if (geojsonSource) {
+  //         geojsonSource.setData(geojson);
+  //       } else {
+  //         map.addSource(geojsonSourceId, {
+  //           type: 'geojson',
+  //           data: geojson,
+  //         });
+  //         map.addLayer({
+  //           source: geojsonSourceId,
+  //           id: geojsonSourceId,
+  //           type: 'line',
+  //           paint: {
+  //             'line-color': 'red',
+  //             'line-width': 2,
+  //           },
+  //         });
+  //       }
+
+  //       const bounds = bbox(geojson);
+  //       map.fitBounds(bounds as [number, number, number, number]);
+
+  //       setStatus({ message: 'GeoJSON added to map', type: 'success' });
+  //     } catch ({ message }) {
+  //       setStatus({ message, type: 'failed' });
+  //     }
+  //   }
+  // }, [map, mapLoaded, geojson]);
 
   return <div id={divId} />;
 }

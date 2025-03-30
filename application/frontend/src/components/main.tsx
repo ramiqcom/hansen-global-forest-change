@@ -1,5 +1,6 @@
 'use client';
 
+import layers from '@/data/layers.json' assert { type: 'json' };
 import { Store } from '@/modules/store';
 import { Status } from '@/modules/type';
 import { FeatureCollection } from 'geojson';
@@ -13,6 +14,9 @@ export default function Main() {
   const [geojson, setGeojson] = useState<FeatureCollection<any, { [name: string]: any }>>();
   const [status, setStatus] = useState<Status>({ message: 'Loading map...', type: 'process' });
 
+  const [layer, setLayer] = useState(layers[0]);
+  const [year, setYear] = useState(new Date().getFullYear() - 1);
+
   const states = {
     map,
     setMap,
@@ -20,6 +24,11 @@ export default function Main() {
     setGeojson,
     status,
     setStatus,
+    layers,
+    layer,
+    setLayer,
+    year,
+    setYear,
   };
 
   return (

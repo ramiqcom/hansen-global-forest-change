@@ -1,6 +1,7 @@
+import { get_mosaic_vrt, warp_cog } from '@/modules/cog';
 import { execute_process } from '@/modules/server_util';
 import { tileToGeoJSON } from '@mapbox/tilebelt';
-import { bbox, booleanIntersects } from '@turf/turf';
+import { bbox } from '@turf/turf';
 import Color from 'color';
 import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { NextRequest, NextResponse } from 'next/server';
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
       .map((color) => Color(color).rgb().array());
     const min = Number(searchParams.get('min'));
     const max = Number(searchParams.get('max'));
+    const year = Number(searchParams.get('year'));
     const interval = Math.abs(min - max) / (palette.length - 1);
     const colorMap = palette
       .map((color, index) => `${min + interval * index} ${color.join(' ')}`)
@@ -44,42 +46,44 @@ export async function GET(req: NextRequest) {
     const polygon = tileToGeoJSON([x, y, z]);
     const bounds = bbox(polygon);
 
-    // Get the layer url
-    const image_urls = tiles.features
-      .filter((feat) => booleanIntersects(feat, polygon))
-      .map((feat) => `/vsicurl/${hansen_prefix}${layer}_${feat.properties.tile_id}.tif`)
-      .join('\n');
-
-    // Text file
-    const image_list = `${tmpFolder}/image_list.txt`;
-    await writeFile(image_list, image_urls);
-
     // Create VRT
-    const vrt = `${tmpFolder}/collection.vrt`;
-    await execute_process('gdalbuildvrt', ['-overwrite', '-input_file_list', image_list, vrt]);
+    const vrt = await get_mosaic_vrt(polygon, layer, tmpFolder);
 
     // Create an image
-    const tif = `${tmpFolder}/image.tif`;
-    await execute_process('gdalwarp', [
-      '-te',
-      bounds[0],
-      bounds[1],
-      bounds[2],
-      bounds[3],
-      '-ts',
-      256,
-      256,
-      '-t_srs',
-      'EPSG:4326',
-      '-overwrite',
-      '-dstalpha',
-      '-wm',
-      '8G',
-      '-multi',
-      '-wo',
-      'NUM_THREADS=ALL_CPUS',
-      vrt,
+    let tif = await warp_cog(vrt, bounds, layer, tmpFolder);
+
+    // Mask the raster if it is treecover2000 or forest cover
+    if (layer == 'treecover2000' || layer == 'forest_cover') {
+      // Mask non forest based on year
+      // Generate forest loss layer
+      const forest_loss_vrt = await get_mosaic_vrt(polygon, 'lossyear', tmpFolder);
+      const forest_loss_tif = await warp_cog(forest_loss_vrt, bounds, 'lossyear', tmpFolder);
+
+      // Mask image
+      const masked_tif = `${tmpFolder}/masked.tif`;
+      await execute_process('gdal_calc', [
+        '-A',
+        tif,
+        '-B',
+        forest_loss_tif,
+        `--calc="A*logical_or(B==0,B>(${year}-2000))"`,
+        `--outfile=${masked_tif}`,
+        '--overwrite',
+        '--hideNoData',
+      ]);
+      tif = masked_tif;
+    }
+
+    // Get the alpha band
+    const alpha = `${tmpFolder}/alpha.tif`;
+
+    // Create masked data or alpha band
+    await execute_process('gdal_calc', [
+      '-A',
       tif,
+      `--outfile=${alpha}`,
+      `--calc="(A!=0)*255"`,
+      '--type=Byte',
     ]);
 
     // Color it with gdaldem
@@ -94,10 +98,6 @@ export async function GET(req: NextRequest) {
       '-b',
       1,
     ]);
-
-    // Get the alpha band
-    const alpha = `${tmpFolder}/alpha.vrt`;
-    await execute_process('gdalbuildvrt', ['-b', 2, '-overwrite', alpha, tif]);
 
     // Combine with alpha band
     const withAlpha = `${tmpFolder}/withAlpha.vrt`;

@@ -1,0 +1,21 @@
+[
+  {
+    "label": "Tree cover density",
+    "value": "treecover2000",
+    "min": 0,
+    "max": 100,
+    "palette": ["indigo", "cornflowerblue", "teal", "lightgreen", "gold"]
+  },
+  {
+    "label": "Forest cover",
+    "value": "forest_cover",
+    "palette": ["greend"]
+  },
+  {
+    "label": "Forest loss",
+    "value": "lossyear",
+    "min": 1,
+    "max": 23,
+    "palette": ["blue", "cyan", "green", "yellow", "red"]
+  }
+]

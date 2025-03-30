@@ -4,7 +4,7 @@ import { Dispatch, SetStateAction } from 'react';
 
 export type SetState<T> = Dispatch<SetStateAction<T>>;
 
-export type Option = { label: string; value: any };
+export type Option = { label: string; value: any; [key: string]: any };
 export type Options = Option[];
 export type Status = { message: string; type: 'success' | 'failed' | 'process' };
 
@@ -15,4 +15,9 @@ export type MainStore = {
   setGeojson: SetState<FeatureCollection<any, { [name: string]: any }>>;
   status: Status;
   setStatus: SetState<Status>;
+  layers: Options;
+  layer: Option;
+  setLayer: SetState<Option>;
+  year: number;
+  setYear: SetState<number>;
 };

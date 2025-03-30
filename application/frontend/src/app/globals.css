@@ -125,6 +125,7 @@ button:disabled {
 
 .button-select {
   width: 100%;
+  min-height: 5vh;
   background-color: #181a1b;
 }
 
