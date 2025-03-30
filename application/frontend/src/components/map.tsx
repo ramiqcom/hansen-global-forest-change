@@ -21,7 +21,7 @@ export default function MapCanvas() {
         center: [117, 0],
         maxZoom: 20,
         minZoom: 1,
-        zoom: 8,
+        zoom: 4,
         style: {
           projection: {
             type: 'globe',
@@ -64,21 +64,22 @@ export default function MapCanvas() {
 
       // Change or add layers
       if (source) {
-        source.setTiles([mapQuery]);
-      } else {
-        // When the map is fully loaded, load the hansen forest cover data
-        map.addSource(cogId, {
-          type: 'raster',
-          tileSize: 256,
-          tiles: [mapQuery],
-        });
-
-        map.addLayer({
-          source: cogId,
-          id: cogId,
-          type: 'raster',
-        });
+        map.removeLayer(cogId);
+        map.removeSource(cogId);
       }
+
+      // When the map is fully loaded, load the hansen forest cover data
+      map.addSource(cogId, {
+        type: 'raster',
+        tileSize: 256,
+        tiles: [mapQuery],
+      });
+
+      map.addLayer({
+        source: cogId,
+        id: cogId,
+        type: 'raster',
+      });
     }
   }, [mapLoaded, layer, year, minForestCover]);
 
