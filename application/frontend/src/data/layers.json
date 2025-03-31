@@ -2,9 +2,9 @@
   {
     "label": "Tree cover density",
     "value": "treecover2000",
-    "min": 0,
+    "min": 50,
     "max": 100,
-    "palette": ["indigo", "cornflowerblue", "teal", "lightgreen", "gold"]
+    "palette": ["tan", "lightyellow", "lightgreen", "darkgreen"]
   },
   {
     "label": "Forest cover",
