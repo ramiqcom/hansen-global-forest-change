@@ -1,7 +1,5 @@
 FROM node:20-alpine
 
-RUN apt-get update -y --fix-missing && apt-get upgrade -y
-
 WORKDIR /usr/src/app
 
 COPY . .
