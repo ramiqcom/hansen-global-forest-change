@@ -18,9 +18,6 @@ const host = '0.0.0.0';
 // CPU
 const numCPUs = cpus.availableParallelism();
 
-// Controller
-const controller = new AbortController();
-
 // Create cluster
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -31,7 +28,6 @@ if (cluster.isPrimary) {
   }
 
   cluster.on('exit', (worker, code, signal) => {
-    controller.abort();
     console.log(`worker ${worker.process.pid} died`);
   });
 } else {
@@ -42,7 +38,6 @@ if (cluster.isPrimary) {
 
   // Error handler
   app.setErrorHandler(async (error, req, res) => {
-    controller.abort();
     const { message } = error;
     console.error(message);
     res.status(404).send({ message, status: 404 }).header('Content-Type', 'application/json');
@@ -65,7 +60,6 @@ if (cluster.isPrimary) {
     const address = await app.listen({ port, host });
     console.log(`Listening on ${address}`);
   } catch (err) {
-    controller.abort();
     console.log(err);
     process.exit(1);
   }

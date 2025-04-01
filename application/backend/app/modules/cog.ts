@@ -1,5 +1,5 @@
-import { tileToGeoJSON } from '@mapbox/tilebelt';
-import { bbox, booleanIntersects } from '@turf/turf';
+import { tileToBBOX } from '@mapbox/tilebelt';
+import { bboxPolygon, booleanIntersects } from '@turf/turf';
 import Color from 'color';
 import { FastifyRequest } from 'fastify';
 import { readFile, writeFile } from 'fs/promises';
@@ -19,21 +19,21 @@ export async function generate_image(
     min: number;
     max: number;
   };
+  const bounds = tileToBBOX([x, y, z].map((x) => Number(x)));
+  const polygon = bboxPolygon(bounds as [number, number, number, number]).geometry;
 
   // Generate color data
-  const interval = Math.abs(min - max) / (palette.length - 1);
-  const colorMap = palette
-    .split(',')
-    .map((color, index) => `${min + interval * index} ${Color(color).rgb().array().join(' ')}`)
+  const paletteSplit = palette.split(',');
+  const interval = Math.abs(Number(min) - Number(max)) / (paletteSplit.length - 1);
+  const colorMap = paletteSplit
+    .map(
+      (color, index) => `${Number(min) + interval * index} ${Color(color).rgb().array().join(' ')}`,
+    )
     .join('\n');
 
   // Text file of the color data
   const colorFile = `${tmpFolder}/color.txt`;
   await writeFile(colorFile, colorMap);
-
-  // Generate bbox or bounds to filter imagery
-  const polygon = tileToGeoJSON([x, y, z]);
-  const bounds = bbox(polygon);
 
   // Create VRT
   const vrt = await get_mosaic_vrt(
