@@ -18,10 +18,12 @@ WORKDIR /usr/src/app
 COPY . .
 
 # Install npm packages and build the app
-RUN npm update --save && npm install && npm run build
+RUN npm update --save --prefix frontend && \
+    npm install --prefix frontend && \
+    npm run build --prefix frontend
+RUN npm update --save --prefix backend && \
+    npm install --prefix backend && \
+    npm run build --prefix backend
 
-# Expose port 3000 to the external
-EXPOSE 3000
-
-# Run the app
-CMD npm run start -- --port 3000
+# Expose port 3000 and 8000 to the external
+EXPOSE 3000 8000
