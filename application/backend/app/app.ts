@@ -1,8 +1,10 @@
 import cluster from 'cluster';
 import { config } from 'dotenv';
 import fastify from 'fastify';
+import { mkdtemp, rm } from 'fs/promises';
 import cpus from 'os';
 import process from 'process';
+import { generate_image } from './modules/cog';
 
 // Run dotenv
 config();
@@ -48,13 +50,14 @@ if (cluster.isPrimary) {
 
   // Get route
   app.get('/cog/:z/:x/:y', async (req, res) => {
-    const { z, x, y } = req.params as {
-      z: number;
-      x: number;
-      y: number;
-    };
-    const { url, bidx, rescale, nodata } = req.query as Record<string, any>;
+    // Temporary directory
+    const tmpFolder = await mkdtemp('temp_');
+    const image = await generate_image(req, tmpFolder);
     res.status(200).type('webp').send(image);
+    setImmediate(async () => {
+      // Delete temp folder
+      await rm(tmpFolder, { recursive: true, force: true });
+    });
   });
 
   // Run the appss
