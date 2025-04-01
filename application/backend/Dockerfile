@@ -17,12 +17,9 @@ WORKDIR /usr/src/app
 # Copy the data from source to the image
 COPY . .
 
-# Install npm packages and build the app
-RUN npm update --save --prefix frontend && \
-    npm install --prefix frontend && \
-    npm run build --prefix frontend
-RUN npm update --save --prefix backend && \
-    npm install --prefix backend
+RUN npm update --save && npm install
 
 # Expose port 3000 and 8000 to the external
-EXPOSE 3000 8000
+EXPOSE 8000
+
+CMD [ "npm", "start", "--", "--port", "8000" ]
