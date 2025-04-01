@@ -60,8 +60,8 @@ env:
   HANSEN_LAYER_PREFIX: ${{ vars.HANSEN_LAYER_PREFIX }}
 
 jobs:
-  deploy-to-cloud-run:
-    name: Deploy hansen-global-forest-change to Cloud Run
+  deploy-to-cloud-run-frontend:
+    name: Deploy hansen-global-forest-change frontend to Cloud Run
 
     permissions:
       contents: read
@@ -85,11 +85,45 @@ jobs:
 
       - name: "Deploy to Cloud Run"
         run: |
-          gcloud run deploy ${{ env.APP }} \
-            --source "./application/frontend" \
+          gcloud run deploy ${{ env.APP }}-frontend \
+            --source "application/frontend" \
+            --region ${{ env.REGION }} \
+            --cpu 1 \
+            --memory 2Gi \
+            --port 3000 \
+            --allow-unauthenticated \
+            --update-env-vars STADIA_API_KEY=${{ env.STADIA_API_KEY }}
+
+  deploy-to-cloud-run-backend:
+    name: Deploy hansen-global-forest-change backend to Cloud Run
+
+    permissions:
+      contents: read
+      id-token: write
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Google Auth
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ env.CREDENTIALS }}
+
+      - name: "Set up Cloud SDK"
+        uses: "google-github-actions/setup-gcloud@v2"
+        with:
+          version: ">= 363.0.0"
+
+      - name: "Deploy to Cloud Run"
+        run: |
+          gcloud run deploy ${{ env.APP }}-backend \
+            --source application/backend \
             --region ${{ env.REGION }} \
             --cpu 8 \
             --memory 32Gi \
-            --port 3000 \
+            --port 8000 \
             --allow-unauthenticated \
-            --update-env-vars STADIA_API_KEY=${{env.STADIA_API_KEY}},HANSEN_TILES_COLLECTION=${{env.HANSEN_TILES_COLLECTION}},HANSEN_LAYER_PREFIX=${{env.HANSEN_LAYER_PREFIX}}
+            --update-env-vars HANSEN_TILES_COLLECTION=${{ env.HANSEN_TILES_COLLECTION }},HANSEN_LAYER_PREFIX=${{ env.HANSEN_LAYER_PREFIX }}

@@ -1,10 +1,28 @@
 services:
-  hansen-global-forest-change:
+  frontend:
     platform: linux/amd64
+    build: frontend
+    container_name: hansen-gfc-frontend
     ports:
       - 3000:3000
-    build: ./frontend
+    networks:
+      - mynetwork
     env_file:
-      - ./frontend/.env
+      - frontend/.env
+    cpu_count: 1
+    mem_limit: 2g
+  backend:
+    platform: linux/amd64
+    build: backend
+    container_name: hansen-gfc-backend
+    ports:
+      - 8000:8000
+    networks:
+      - mynetwork
+    env_file:
+      - backend/.env
     cpu_count: 8
     mem_limit: 32g
+
+networks:
+  mynetwork:
