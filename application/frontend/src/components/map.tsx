@@ -31,6 +31,7 @@ export default function MapCanvas() {
             basemap: {
               type: 'raster',
               url: '/basemap',
+              tileSize: 256,
             },
           },
           layers: [{ source: 'basemap', id: 'basemap', type: 'raster' }],
