@@ -43,7 +43,7 @@ function Layers() {
         min={2000}
         max={2024}
         value={tempYear}
-        onMouseUp={() => setYear(year)}
+        onMouseUp={() => setYear(tempYear)}
         onChange={(e) => setTempYear(Number(e.target.value))}
       />
       <div className='flexible wide'>
@@ -75,7 +75,7 @@ function Layers() {
           min={1}
           max={99}
           value={tempForestCover}
-          onMouseUp={() => setMinForestCover(minForestCover)}
+          onMouseUp={() => setMinForestCover(tempForestCover)}
           onChange={(e) => setTempForestCover(Number(e.target.value))}
         />
         <div className='flexible wide'>
