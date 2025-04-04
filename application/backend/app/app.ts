@@ -47,12 +47,13 @@ if (cluster.isPrimary) {
   app.get('/cog/:z/:x/:y', async (req, res) => {
     // Temporary directory
     const tmpFolder = await mkdtemp('temp_');
-    const image = await generate_image(req, tmpFolder);
-    res.status(200).type('webp').send(image);
-    setImmediate(async () => {
+    try {
+      const image = await generate_image(req, tmpFolder);
+      res.status(200).type('webp').send(image);
+    } finally {
       // Delete temp folder
       await rm(tmpFolder, { recursive: true, force: true });
-    });
+    }
   });
 
   // Run the appss
