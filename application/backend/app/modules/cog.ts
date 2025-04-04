@@ -105,6 +105,8 @@ export async function generate_image(
   // Rescale the image
   const rescale = `${tmpFolder}/rescale.webp`;
   await execute_process('gdal_translate', [
+    '-r',
+    'bilinear',
     '-of',
     'WEBP',
     '-ot',
@@ -144,7 +146,14 @@ export async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tm
 
   // Create VRT
   const vrt = `${tmpFolder}/${layer}_collection.vrt`;
-  await execute_process('gdalbuildvrt', ['-overwrite', '-input_file_list', image_list, vrt]);
+  await execute_process('gdalbuildvrt', [
+    '-r',
+    'bilinear',
+    '-overwrite',
+    '-input_file_list',
+    image_list,
+    vrt,
+  ]);
 
   return vrt;
 }
@@ -165,6 +174,8 @@ export async function warp_cog(vrt: string, bounds: number[], layer: string, tmp
     '-t_srs',
     'EPSG:4326',
     '-overwrite',
+    '-r',
+    'bilinear',
     '-wm',
     '8G',
     '-multi',
