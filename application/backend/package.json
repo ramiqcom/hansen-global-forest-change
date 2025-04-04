@@ -18,7 +18,6 @@
     "@mapbox/tilebelt": "^2.0.2",
     "@turf/turf": "^7.2.0",
     "@types/mapbox__tilebelt": "^1.0.4",
-    "@types/node": "^20.17.30",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "color": "^5.0.0",
@@ -30,5 +29,8 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0"
   }
 }
