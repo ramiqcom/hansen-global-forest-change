@@ -21,7 +21,7 @@ export default function MapCanvas() {
         center: [117, 0],
         maxZoom: 20,
         minZoom: 1,
-        zoom: 4,
+        zoom: 8,
         style: {
           projection: {
             type: 'globe',
