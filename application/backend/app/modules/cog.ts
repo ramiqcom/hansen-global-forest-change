@@ -105,10 +105,10 @@ export async function generate_image(
   // Rescale the image
   const rescale = `${tmpFolder}/rescale.webp`;
   await execute_process('gdal_translate', [
-    '-r',
-    'bilinear',
     '-of',
     'WEBP',
+    '-co',
+    'QUALITY=90',
     '-ot',
     'Byte',
     '-outsize',
@@ -125,7 +125,7 @@ export async function generate_image(
 }
 
 // Function to mosaic layer
-export async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tmpFolder: string) {
+async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tmpFolder: string) {
   // Load tiles collection to filter
   const tiles: GeoJSON.FeatureCollection<any> = await (
     await fetch(process.env.HANSEN_TILES_COLLECTION)
@@ -146,20 +146,13 @@ export async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tm
 
   // Create VRT
   const vrt = `${tmpFolder}/${layer}_collection.vrt`;
-  await execute_process('gdalbuildvrt', [
-    '-r',
-    'bilinear',
-    '-overwrite',
-    '-input_file_list',
-    image_list,
-    vrt,
-  ]);
+  await execute_process('gdalbuildvrt', ['-overwrite', '-input_file_list', image_list, vrt]);
 
   return vrt;
 }
 
 // Function to warp and clip image
-export async function warp_cog(vrt: string, bounds: number[], layer: string, tmpFolder: string) {
+async function warp_cog(vrt: string, bounds: number[], layer: string, tmpFolder: string) {
   // Create an image
   const tif = `${tmpFolder}/${layer}_image.tif`;
   await execute_process('gdalwarp', [
@@ -174,8 +167,6 @@ export async function warp_cog(vrt: string, bounds: number[], layer: string, tmp
     '-t_srs',
     'EPSG:4326',
     '-overwrite',
-    '-r',
-    'bilinear',
     '-wm',
     '8G',
     '-multi',
