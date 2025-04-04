@@ -42,7 +42,7 @@ function Layers() {
         type='range'
         min={2000}
         max={2024}
-        value={year}
+        value={tempYear}
         onMouseUp={() => setYear(year)}
         onChange={(e) => setTempYear(Number(e.target.value))}
       />
@@ -74,7 +74,7 @@ function Layers() {
           type='range'
           min={1}
           max={99}
-          value={minForestCover}
+          value={tempForestCover}
           onMouseUp={() => setMinForestCover(minForestCover)}
           onChange={(e) => setTempForestCover(Number(e.target.value))}
         />
