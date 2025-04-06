@@ -1,3 +1,4 @@
+import { analysis_hansen } from '@/modules/analysis';
 import { Store } from '@/modules/store';
 import { useContext, useState } from 'react';
 export default function Panel() {
@@ -22,9 +23,26 @@ export default function Panel() {
 }
 
 function Analysis() {
+  const { geojson, setStatus, status } = useContext(Store);
+  const [dataTable, setDataTable] = useState<Record<string, number>>();
   return (
-    <div className='section'>
+    <div className='section flexible vertical gap'>
       <UploadFile />
+      <button
+        disabled={typeof geojson == 'undefined' || status.type == 'process'}
+        onClick={async () => {
+          try {
+            setStatus({ type: 'process', message: 'Calculating data' });
+            const data = await analysis_hansen(geojson);
+            setDataTable(data);
+            setStatus({ type: 'success', message: 'Data calculated' });
+          } catch ({ message }) {
+            setStatus({ type: 'failed', message });
+          }
+        }}
+      >
+        Run analysis
+      </button>
     </div>
   );
 }
