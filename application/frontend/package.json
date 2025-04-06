@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@turf/turf": "^7.2.0",
+    "chart.js": "^4.4.8",
     "eslint-config-prettier": "^9.1.0",
     "maplibre-gl": "^4.7.1",
     "next": "^15.2.4",
