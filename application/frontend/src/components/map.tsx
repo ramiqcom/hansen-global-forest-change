@@ -1,5 +1,6 @@
 import { Store } from '@/modules/store';
-import { Map, RasterTileSource } from 'maplibre-gl';
+import { bbox } from '@turf/turf';
+import { GeoJSONSource, Map, RasterTileSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useContext, useEffect, useState } from 'react';
 
@@ -84,39 +85,39 @@ export default function MapCanvas() {
     }
   }, [mapLoaded, layer, year, minForestCover]);
 
-  // // Load geojson to map if it is not null;
-  // useEffect(() => {
-  //   if (mapLoaded && geojson) {
-  //     try {
-  //       setStatus({ message: 'Adding geojson to map...', type: 'process' });
-  //       const geojsonSource = map.getSource(geojsonSourceId) as GeoJSONSource;
-  //       if (geojsonSource) {
-  //         geojsonSource.setData(geojson);
-  //       } else {
-  //         map.addSource(geojsonSourceId, {
-  //           type: 'geojson',
-  //           data: geojson,
-  //         });
-  //         map.addLayer({
-  //           source: geojsonSourceId,
-  //           id: geojsonSourceId,
-  //           type: 'line',
-  //           paint: {
-  //             'line-color': 'red',
-  //             'line-width': 2,
-  //           },
-  //         });
-  //       }
+  // Load geojson to map if it is not null;
+  useEffect(() => {
+    if (mapLoaded && geojson) {
+      try {
+        setStatus({ message: 'Adding geojson to map...', type: 'process' });
+        const geojsonSource = map.getSource(geojsonSourceId) as GeoJSONSource;
+        if (geojsonSource) {
+          geojsonSource.setData(geojson);
+        } else {
+          map.addSource(geojsonSourceId, {
+            type: 'geojson',
+            data: geojson,
+          });
+          map.addLayer({
+            source: geojsonSourceId,
+            id: geojsonSourceId,
+            type: 'line',
+            paint: {
+              'line-color': 'red',
+              'line-width': 2,
+            },
+          });
+        }
 
-  //       const bounds = bbox(geojson);
-  //       map.fitBounds(bounds as [number, number, number, number]);
+        const bounds = bbox(geojson);
+        map.fitBounds(bounds as [number, number, number, number]);
 
-  //       setStatus({ message: 'GeoJSON added to map', type: 'success' });
-  //     } catch ({ message }) {
-  //       setStatus({ message, type: 'failed' });
-  //     }
-  //   }
-  // }, [map, mapLoaded, geojson]);
+        setStatus({ message: 'GeoJSON added to map', type: 'success' });
+      } catch ({ message }) {
+        setStatus({ message, type: 'failed' });
+      }
+    }
+  }, [map, mapLoaded, geojson]);
 
   return <div id={divId} />;
 }

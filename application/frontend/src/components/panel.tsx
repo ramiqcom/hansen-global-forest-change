@@ -6,8 +6,8 @@ export default function Panel() {
   return (
     <div id='panel' className='flexible vertical gap'>
       <div className='title'>Hansen Global Forest Change</div>
+      <Analysis />
       <Layers />
-      <Legend />
       <div
         style={{
           textAlign: 'center',
@@ -17,6 +17,14 @@ export default function Panel() {
       >
         {status.message}
       </div>
+    </div>
+  );
+}
+
+function Analysis() {
+  return (
+    <div className='section'>
+      <UploadFile />
     </div>
   );
 }
@@ -87,11 +95,12 @@ function Layers() {
   );
 
   return (
-    <div className='flexible vertical small-gap'>
+    <div className='flexible vertical small-gap section'>
       Select layer to show to the map
       <div className='flexible wide'>{selectLayers}</div>
       {layer.value != 'lossyear' ? yearDrag : null}
       {layer.value == 'forest_cover' ? forestCoverDrag : null}
+      <Legend />
     </div>
   );
 }
@@ -139,33 +148,33 @@ function Legend() {
   return legend;
 }
 
-// function UploadFile() {
-//   const { setGeojson, setStatus, status } = useContext(Store);
+function UploadFile() {
+  const { setGeojson, setStatus, status } = useContext(Store);
 
-//   return (
-//     <div className='flexible vertical small-gap'>
-//       1. Upload your region of interest in geojson format
-//       <input
-//         type='file'
-//         accept='.geojson,.json'
-//         disabled={status.type == 'process'}
-//         onChange={async (e) => {
-//           // Parse geojson from uploaded file
-//           try {
-//             setStatus({ message: 'Loading GeoJSON file...', type: 'process' });
-//             const file = e.target.files[0];
+  return (
+    <div className='flexible vertical small-gap'>
+      Upload your region of interest in geojson format for analysis
+      <input
+        type='file'
+        accept='.geojson,.json'
+        disabled={status.type == 'process'}
+        onChange={async (e) => {
+          // Parse geojson from uploaded file
+          try {
+            setStatus({ message: 'Loading GeoJSON file...', type: 'process' });
+            const file = e.target.files[0];
 
-//             const geojson: FeatureCollection<any, { [name: string]: any }> = JSON.parse(
-//               await file.text(),
-//             );
+            const geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }> = JSON.parse(
+              await file.text(),
+            );
 
-//             setGeojson(geojson);
-//             setStatus({ message: 'GeoJSON loaded', type: 'success' });
-//           } catch ({ message }) {
-//             setStatus({ message, type: 'failed' });
-//           }
-//         }}
-//       />
-//     </div>
-//   );
-// }
+            setGeojson(geojson);
+            setStatus({ message: 'GeoJSON loaded', type: 'success' });
+          } catch ({ message }) {
+            setStatus({ message, type: 'failed' });
+          }
+        }}
+      />
+    </div>
+  );
+}
