@@ -1,6 +1,7 @@
 import { analysis_hansen } from '@/modules/analysis';
 import { Store } from '@/modules/store';
-import { useContext, useState } from 'react';
+import { Chart } from 'chart.js/auto';
+import { useContext, useEffect, useState } from 'react';
 export default function Panel() {
   const { status } = useContext(Store);
 
@@ -25,6 +26,70 @@ export default function Panel() {
 function Analysis() {
   const { geojson, setStatus, status } = useContext(Store);
   const [dataTable, setDataTable] = useState<Record<string, number>>();
+  const [downloadData, setDownloadData] = useState<string>();
+  const chartId = 'chart';
+
+  useEffect(() => {
+    if (dataTable) {
+      // Create downloadlink
+      const labels = Object.keys(dataTable);
+      const values = Object.values(dataTable);
+      let csv = labels.map((label, index) => `${label},${values[index]}`).join('\n');
+      csv = `year,forest_area\n${csv}`;
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const dataUrl = URL.createObjectURL(blob);
+      setDownloadData(dataUrl);
+
+      // Create chart
+      let chart = new Chart(chartId, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: 'Forest area (Ha)',
+              data: values,
+              backgroundColor: 'green',
+            },
+          ],
+        },
+        options: {
+          layout: {
+            padding: {
+              top: 10,
+              right: 10,
+              bottom: 10,
+              left: 10,
+            },
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: 'gray',
+              },
+            },
+          },
+          scales: {
+            y: {
+              ticks: {
+                color: 'gray',
+              },
+            },
+            x: {
+              ticks: {
+                color: 'gray',
+              },
+            },
+          },
+        },
+      });
+
+      return () => {
+        chart.destroy();
+      };
+    }
+  }, [dataTable]);
+
   return (
     <div className='section flexible vertical gap'>
       <UploadFile />
@@ -42,7 +107,15 @@ function Analysis() {
         }}
       >
         Run analysis
-      </button>
+      </button>{' '}
+      {dataTable ? (
+        <canvas id={chartId} style={{ width: '100%', height: '20vh', backgroundColor: 'white' }} />
+      ) : null}
+      {dataTable ? (
+        <a href={downloadData} download='forest_area.csv' style={{ width: '100%' }}>
+          <button style={{ width: '100%' }}>Download data</button>
+        </a>
+      ) : null}
     </div>
   );
 }
