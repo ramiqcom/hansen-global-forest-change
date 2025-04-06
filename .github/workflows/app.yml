@@ -126,6 +126,4 @@ jobs:
             --memory 32Gi \
             --port 8000 \
             --allow-unauthenticated \
-            --concurrency 16 \
-            --min-instances 8 \
             --update-env-vars HANSEN_TILES_COLLECTION=${{ env.HANSEN_TILES_COLLECTION }},HANSEN_LAYER_PREFIX=${{ env.HANSEN_LAYER_PREFIX }}
