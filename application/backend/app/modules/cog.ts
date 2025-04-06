@@ -1,5 +1,5 @@
 import { tileToBBOX } from '@mapbox/tilebelt';
-import { bboxPolygon, booleanIntersects } from '@turf/turf';
+import { bbox, bboxPolygon, booleanIntersects } from '@turf/turf';
 import Color from 'color';
 import { FastifyRequest } from 'fastify';
 import { readFile, writeFile } from 'fs/promises';
@@ -68,6 +68,7 @@ export async function generate_image(
       `--outfile=${masked_tif}`,
       '--overwrite',
       '--hideNoData',
+      '--co="COMPRESS=ZSTD"',
     ]);
     tif = masked_tif;
   }
@@ -83,6 +84,7 @@ export async function generate_image(
     `--calc="(A!=0)*255"`,
     '--type=Byte',
     '--hideNoData',
+    '--co="COMPRESS=ZSTD"',
   ]);
 
   // Color it with gdaldem
@@ -124,6 +126,106 @@ export async function generate_image(
   return bufferImage;
 }
 
+// Function to generate hansen data analysis
+export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
+  // Read geojson from body
+  const { geojson } = req.body as {
+    geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }>;
+  };
+
+  // Save it as geojson file
+  const geojsonFile = `${tmpFolder}/roi.geojson`;
+  await writeFile(geojsonFile, JSON.stringify(geojson));
+
+  // Define minimum treecover for forest cover
+  const min_forest_cover = 80;
+
+  // Generate bbox
+  const bounds = bbox(geojson);
+  const polygonBounds = bboxPolygon(bounds);
+
+  // Calculate optimal shape
+  const width = Math.round((Math.abs(bounds[0] - bounds[2]) * 110_000) / 30);
+  const height = Math.round((Math.abs(bounds[1] - bounds[3]) * 110_000) / 30);
+  const shape = [height, width];
+
+  // Generate forest cover
+  console.log('Generate forest cover');
+  const treecover_vrt = await get_mosaic_vrt(polygonBounds.geometry, 'treecover2000', tmpFolder);
+  const treecover_tif = await warp_cog(
+    treecover_vrt,
+    bounds,
+    'treecover2000',
+    tmpFolder,
+    shape,
+    geojsonFile,
+  );
+
+  // Generate forest loss
+  console.log('Generate forest loss');
+  const forest_loss_vrt = await get_mosaic_vrt(polygonBounds.geometry, 'lossyear', tmpFolder);
+  const forest_loss_tif = await warp_cog(
+    forest_loss_vrt,
+    bounds,
+    'lossyear',
+    tmpFolder,
+    shape,
+    geojsonFile,
+  );
+
+  // Run analysis
+  const years = [];
+  for (let year = 2000; year <= 2023; year++) {
+    years.push(year);
+  }
+
+  // Run promise for all
+  console.log('Generate forest cover per year');
+  const forestAreaPerYear = await Promise.all(
+    years.map(async (year) => {
+      console.log(`Generate forest cover ${year}`);
+      const formula = `(A>=${min_forest_cover})*logical_or(B==0,B>(${year}-2000))`;
+
+      // Mask image
+      const forestCoverYear = `${tmpFolder}/forest_cover_${year}.tif`;
+      await execute_process('gdal_calc', [
+        '-A',
+        treecover_tif,
+        '-B',
+        forest_loss_tif,
+        `--calc="${formula}"`,
+        `--outfile=${forestCoverYear}`,
+        '--overwrite',
+        '--NoDataValue=0',
+        '--type=Byte',
+        '--hideNoData',
+        '--co="COMPRESS=ZSTD"',
+      ]);
+
+      return forestCoverYear;
+    }),
+  );
+
+  // Combine all image into vrt
+  const forestYearsVrt = `${tmpFolder}/forest_years.vrt`;
+  await execute_process('gdalbuildvrt', ['-separate', forestYearsVrt, forestAreaPerYear.join(' ')]);
+
+  // Calculate the statistics
+  console.log('Calculate forest statistics');
+  const statistics = `${tmpFolder}/statistics.json`;
+  await execute_process('gdalinfo', ['-json', '-stats', '-hist', forestYearsVrt, '>', statistics]);
+
+  // Read the statistics
+  const areaHa = JSON.parse(await readFile(statistics, 'utf8'))['bands'].map(
+    (band) => (band['histogram']['buckets'][1] * 900) / 10_000,
+  );
+
+  // Result
+  const table = Object.fromEntries(years.map((year, index) => [year, areaHa[index]]));
+
+  return table;
+}
+
 // Function to mosaic layer
 async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tmpFolder: string) {
   // Load tiles collection to filter
@@ -152,9 +254,17 @@ async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tmpFolder
 }
 
 // Function to warp and clip image
-async function warp_cog(vrt: string, bounds: number[], layer: string, tmpFolder: string) {
+async function warp_cog(
+  vrt: string,
+  bounds: number[],
+  layer: string,
+  tmpFolder: string,
+  shapes: number[] = [256, 256],
+  cutline?: string,
+) {
   // Create an image
   const tif = `${tmpFolder}/${layer}_image.tif`;
+  const cutline_param = cutline ? `-cutline ${cutline} -crop_to_cutline` : '';
   await execute_process('gdalwarp', [
     '-te',
     bounds[0],
@@ -162,16 +272,21 @@ async function warp_cog(vrt: string, bounds: number[], layer: string, tmpFolder:
     bounds[2],
     bounds[3],
     '-ts',
-    256,
-    256,
+    shapes[1],
+    shapes[0],
     '-t_srs',
     'EPSG:4326',
-    '-overwrite',
+    cutline_param,
+    '-of',
+    'COG',
+    '-co',
+    'COMPRESS=ZSTD',
     '-wm',
     '8G',
     '-multi',
     '-wo',
     'NUM_THREADS=ALL_CPUS',
+    '-overwrite',
     vrt,
     tif,
   ]);

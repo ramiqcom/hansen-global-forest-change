@@ -193,6 +193,11 @@ button:disabled {
   text-align: center;
 }
 
+.section {
+  background-color: darkgreen;
+  padding: 1vh;
+}
+
 #loading {
   width: 100%;
   height: 100%;

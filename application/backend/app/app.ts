@@ -4,7 +4,7 @@ import fastify from 'fastify';
 import { mkdtemp, rm } from 'fs/promises';
 import cpus from 'os';
 import process from 'process';
-import { generate_image } from './modules/cog';
+import { generate_image, hansen_data } from './modules/cog';
 
 // Run dotenv
 config();
@@ -50,6 +50,19 @@ if (cluster.isPrimary) {
     try {
       const image = await generate_image(req, tmpFolder);
       res.status(200).type('webp').send(image);
+    } finally {
+      // Delete temp folder
+      await rm(tmpFolder, { recursive: true, force: true });
+    }
+  });
+
+  // Analysis route
+  app.post('/analysis', async (req, res) => {
+    // Temporary directory
+    const tmpFolder = await mkdtemp('temp_');
+    try {
+      const data = await hansen_data(req, tmpFolder);
+      res.status(200).type('application/json').send(data);
     } finally {
       // Delete temp folder
       await rm(tmpFolder, { recursive: true, force: true });
