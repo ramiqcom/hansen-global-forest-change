@@ -88,8 +88,8 @@ jobs:
           gcloud run deploy ${{ env.APP }}-frontend \
             --source "application/frontend" \
             --region ${{ env.REGION }} \
-            --cpu 2 \
-            --memory 4Gi \
+            --cpu 1 \
+            --memory 2Gi \
             --port 3000 \
             --allow-unauthenticated \
             --update-env-vars STADIA_API_KEY=${{ env.STADIA_API_KEY }}
