@@ -1,4 +1,4 @@
-import { tileToBBOX } from '@mapbox/tilebelt';
+import { tileToGeoJSON } from '@mapbox/tilebelt';
 import { bbox, bboxPolygon, booleanIntersects } from '@turf/turf';
 import Color from 'color';
 import { FastifyRequest } from 'fastify';
@@ -19,8 +19,7 @@ export async function generate_image(
     min: number;
     max: number;
   };
-  const bounds = tileToBBOX([x, y, z].map((x) => Number(x)));
-  const polygon = bboxPolygon(bounds as [number, number, number, number]).geometry;
+  const polygon = tileToGeoJSON([x, y, z].map((x) => Number(x)));
 
   // Generate color data
   const paletteSplit = palette.split(',');
@@ -35,22 +34,14 @@ export async function generate_image(
   const colorFile = `${tmpFolder}/color.txt`;
   await writeFile(colorFile, colorMap);
 
-  // Create VRT
-  const vrt = await get_mosaic_vrt(
-    polygon,
-    layer == 'forest_cover' ? 'treecover2000' : layer,
-    tmpFolder,
-  );
-
   // Create an image
-  let tif = await warp_cog(vrt, bounds, layer, tmpFolder);
+  let tif = await warp_cog(polygon, layer == 'forest_cover' ? 'treecover2000' : layer, tmpFolder);
 
   // Mask the raster if it is treecover2000 or forest cover
   if (layer == 'treecover2000' || layer == 'forest_cover') {
     // Mask non forest based on year
     // Generate forest loss layer
-    const forest_loss_vrt = await get_mosaic_vrt(polygon, 'lossyear', tmpFolder);
-    const forest_loss_tif = await warp_cog(forest_loss_vrt, bounds, 'lossyear', tmpFolder);
+    const forest_loss_tif = await warp_cog(polygon, 'lossyear', tmpFolder);
 
     let formula = `A*logical_or(B==0,B>(${year}-2000))`;
     if (layer == 'forest_cover') {
@@ -142,7 +133,7 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
 
   // Generate bbox
   const bounds = bbox(geojson);
-  const polygonBounds = bboxPolygon(bounds);
+  const polygonBounds = bboxPolygon(bounds).geometry;
 
   // Calculate optimal shape
   const width = Math.round((Math.abs(bounds[0] - bounds[2]) * 110_000) / 30);
@@ -151,10 +142,8 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
 
   // Generate forest cover
   console.log('Generate forest cover');
-  const treecover_vrt = await get_mosaic_vrt(polygonBounds.geometry, 'treecover2000', tmpFolder);
   const treecover_tif = await warp_cog(
-    treecover_vrt,
-    bounds,
+    polygonBounds,
     'treecover2000',
     tmpFolder,
     shape,
@@ -163,15 +152,7 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
 
   // Generate forest loss
   console.log('Generate forest loss');
-  const forest_loss_vrt = await get_mosaic_vrt(polygonBounds.geometry, 'lossyear', tmpFolder);
-  const forest_loss_tif = await warp_cog(
-    forest_loss_vrt,
-    bounds,
-    'lossyear',
-    tmpFolder,
-    shape,
-    geojsonFile,
-  );
+  const forest_loss_tif = await warp_cog(polygonBounds, 'lossyear', tmpFolder, shape, geojsonFile);
 
   // Run analysis
   const years = [];
@@ -226,8 +207,17 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   return table;
 }
 
-// Function to mosaic layer
-async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tmpFolder: string) {
+// Function to warp and clip image
+async function warp_cog(
+  polygon: GeoJSON.Polygon,
+  layer: string,
+  tmpFolder: string,
+  shapes: number[] = [256, 256],
+  cutline?: string,
+) {
+  // Bounds
+  const bounds = bbox(polygon);
+
   // Load tiles collection to filter
   const tiles: GeoJSON.FeatureCollection<any> = await (
     await fetch(process.env.HANSEN_TILES_COLLECTION)
@@ -250,18 +240,6 @@ async function get_mosaic_vrt(polygon: GeoJSON.Polygon, layer: string, tmpFolder
   const vrt = `${tmpFolder}/${layer}_collection.vrt`;
   await execute_process('gdalbuildvrt', ['-overwrite', '-input_file_list', image_list, vrt]);
 
-  return vrt;
-}
-
-// Function to warp and clip image
-async function warp_cog(
-  vrt: string,
-  bounds: number[],
-  layer: string,
-  tmpFolder: string,
-  shapes: number[] = [256, 256],
-  cutline?: string,
-) {
   // Create an image
   const tif = `${tmpFolder}/${layer}_image.tif`;
   const cutline_param = cutline ? `-cutline ${cutline} -crop_to_cutline` : '';
