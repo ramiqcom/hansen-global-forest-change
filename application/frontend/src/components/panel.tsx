@@ -109,11 +109,24 @@ function Analysis() {
         Run analysis
       </button>{' '}
       {dataTable ? (
-        <canvas id={chartId} style={{ width: '100%', height: '20vh', backgroundColor: 'white' }} />
+        <canvas
+          id={chartId}
+          hidden={typeof dataTable == 'undefined' || status.type == 'process'}
+          style={{
+            width: '100%',
+            height: '20vh',
+            backgroundColor: 'white',
+          }}
+        />
       ) : null}
       {dataTable ? (
         <a href={downloadData} download='forest_area.csv' style={{ width: '100%' }}>
-          <button style={{ width: '100%' }}>Download data</button>
+          <button
+            style={{ width: '100%' }}
+            disabled={typeof dataTable == 'undefined' || status.type == 'process'}
+          >
+            Download data
+          </button>
         </a>
       ) : null}
     </div>
