@@ -27,6 +27,7 @@ function Analysis() {
   const { geojson, setStatus, status } = useContext(Store);
   const [dataTable, setDataTable] = useState<Record<string, number>>();
   const [downloadData, setDownloadData] = useState<string>();
+  const [downloadLayer, setDownloadLayer] = useState<string>();
   const chartId = 'chart';
 
   useEffect(() => {
@@ -98,8 +99,10 @@ function Analysis() {
         onClick={async () => {
           try {
             setStatus({ type: 'process', message: 'Calculating data' });
-            const data = await analysis_hansen(geojson);
-            setDataTable(data);
+            const { table, layer } = await analysis_hansen(geojson);
+            const layerUrl = URL.createObjectURL(new Blob([layer], { type: 'image/tif' }));
+            setDataTable(table);
+            setDownloadLayer(layerUrl);
             setStatus({ type: 'success', message: 'Data calculated' });
           } catch ({ message }) {
             setStatus({ type: 'failed', message });
@@ -119,16 +122,28 @@ function Analysis() {
           }}
         />
       ) : null}
-      {dataTable ? (
-        <a href={downloadData} download='forest_area.csv' style={{ width: '100%' }}>
-          <button
-            style={{ width: '100%' }}
-            disabled={typeof dataTable == 'undefined' || status.type == 'process'}
-          >
-            Download data
-          </button>
-        </a>
-      ) : null}
+      <div className='flexible small-gap wide'>
+        {dataTable ? (
+          <a href={downloadData} download='forest_area.csv' style={{ width: '100%' }}>
+            <button
+              style={{ width: '100%' }}
+              disabled={typeof dataTable == 'undefined' || status.type == 'process'}
+            >
+              Download data
+            </button>
+          </a>
+        ) : null}
+        {downloadLayer ? (
+          <a href={downloadLayer} download='forest_years.tif' style={{ width: '100%' }}>
+            <button
+              style={{ width: '100%' }}
+              disabled={typeof downloadLayer == 'undefined' || status.type == 'process'}
+            >
+              Download layer
+            </button>
+          </a>
+        ) : null}
+      </div>
     </div>
   );
 }
