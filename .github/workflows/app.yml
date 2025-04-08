@@ -85,7 +85,7 @@ jobs:
 
       - name: "Build docker in GCP"
         run: |
-          gcloud builds submits application \
+          gcloud builds submit application \
             --tag gcr.io/${{ env.PROJECT_ID }}/${{ env.APP }}:latest
 
   deploy-to-cloud-run-frontend:
