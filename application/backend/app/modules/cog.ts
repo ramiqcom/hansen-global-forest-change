@@ -5,6 +5,20 @@ import { FastifyRequest } from 'fastify';
 import { readFile, writeFile } from 'fs/promises';
 import { execute_process } from './server_util';
 
+export async function load_hansen_tiles(polygon: GeoJSON.Polygon): Promise<string[]> {
+  // Load tiles collection to filter
+  const tiles: GeoJSON.FeatureCollection<any> = await (
+    await fetch(process.env.HANSEN_TILES_COLLECTION)
+  ).json();
+
+  // Tile ids
+  const tileIds = tiles.features
+    .filter((feat) => booleanIntersects(feat, polygon))
+    .map((feat) => feat['properties']['tile_id']);
+
+  return tileIds;
+}
+
 // Function to generate image
 export async function generate_image(
   req: FastifyRequest,
@@ -19,7 +33,11 @@ export async function generate_image(
     min: number;
     max: number;
   };
+  // Polygon based on tile
   const polygon = tileToGeoJSON([x, y, z].map((x) => Number(x)));
+
+  // Load tiles collection to filter
+  const tiles = await load_hansen_tiles(polygon);
 
   // Generate color data
   const paletteSplit = palette.split(',');
@@ -41,8 +59,8 @@ export async function generate_image(
     // Mask non forest based on year
     // Generate forest loss layer
     const [treecover2000_tif, forest_loss_tif] = await Promise.all([
-      warp_image(polygon, 'treecover2000', tmpFolder),
-      warp_image(polygon, 'lossyear', tmpFolder),
+      warp_image(polygon, 'treecover2000', tiles, tmpFolder),
+      warp_image(polygon, 'lossyear', tiles, tmpFolder),
       writeFile(colorFile, colorMap),
     ]);
 
@@ -62,12 +80,11 @@ export async function generate_image(
       `--outfile=${masked_tif}`,
       '--overwrite',
       '--hideNoData',
-      '--co="COMPRESS=ZSTD"',
     ]);
     tif = masked_tif;
   } else {
     const [forest_loss_tif] = await Promise.all([
-      warp_image(polygon, layer, tmpFolder),
+      warp_image(polygon, layer, tiles, tmpFolder),
       writeFile(colorFile, colorMap),
     ]);
     tif = forest_loss_tif;
@@ -88,7 +105,6 @@ export async function generate_image(
       `--calc="(A!=0)*255"`,
       '--type=Byte',
       '--hideNoData',
-      '--co="COMPRESS=ZSTD"',
     ]),
     execute_process('gdaldem', ['color-relief', tif, colorFile, colored, '-of', 'WEBP', '-b', 1]),
   ]);
@@ -102,10 +118,6 @@ export async function generate_image(
   await execute_process('gdal_translate', [
     '-of',
     'WEBP',
-    '-co',
-    'QUALITY=90',
-    '-ot',
-    'Byte',
     '-outsize',
     256,
     256,
@@ -137,6 +149,9 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   const bounds = bbox(geojson);
   const polygonBounds = bboxPolygon(bounds).geometry;
 
+  // Load tiles
+  const tiles = await load_hansen_tiles(polygonBounds);
+
   // Calculate optimal shape
   const width = Math.round((Math.abs(bounds[0] - bounds[2]) * 110_000) / 30);
   const height = Math.round((Math.abs(bounds[1] - bounds[3]) * 110_000) / 30);
@@ -145,8 +160,8 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   // Generate forest cover
   console.log('Generate forest cover and forest loss');
   const [treecover_tif, forest_loss_tif] = await Promise.all([
-    warp_image(polygonBounds, 'treecover2000', tmpFolder, shape, geojsonFile),
-    warp_image(polygonBounds, 'lossyear', tmpFolder, shape, geojsonFile),
+    warp_image(polygonBounds, 'treecover2000', tiles, tmpFolder, shape, geojsonFile),
+    warp_image(polygonBounds, 'lossyear', tiles, tmpFolder, shape, geojsonFile),
   ]);
 
   // Run analysis
@@ -175,7 +190,6 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
         '--NoDataValue=0',
         '--type=Byte',
         '--hideNoData',
-        '--co="COMPRESS=ZSTD"',
       ]);
 
       return forestCoverYear;
@@ -206,6 +220,7 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
 async function warp_image(
   polygon: GeoJSON.Polygon,
   layer: string,
+  tiles: string[],
   tmpFolder: string,
   shapes: number[] = [256, 256],
   cutline?: string,
@@ -213,53 +228,52 @@ async function warp_image(
   // Bounds
   const bounds = bbox(polygon);
 
-  // Load tiles collection to filter
-  const tiles: GeoJSON.FeatureCollection<any> = await (
-    await fetch(process.env.HANSEN_TILES_COLLECTION)
-  ).json();
-
   // Hansen layer prefix
   const hansen_prefix = process.env.HANSEN_LAYER_PREFIX;
 
   // Get the layer url
-  const image_urls = tiles.features
-    .filter((feat) => booleanIntersects(feat, polygon))
-    .map((feat) => `/vsicurl/${hansen_prefix}${layer}_${feat.properties.tile_id}.tif`)
-    .join('\n');
-
-  // Text file
-  const image_list = `${tmpFolder}/${layer}_image_list.txt`;
-  await writeFile(image_list, image_urls);
+  const image_urls = tiles
+    .map((tile_id) => `"/vsicurl/${hansen_prefix}${layer}_${tile_id}.tif"`)
+    .join(' ');
 
   // Create VRT
   const vrt = `${tmpFolder}/${layer}_collection.vrt`;
-  await execute_process('gdalbuildvrt', ['-overwrite', '-input_file_list', image_list, vrt]);
+  await execute_process('gdalbuildvrt', ['-overwrite', vrt, image_urls]);
 
   // Create an image
   const tif = `${tmpFolder}/${layer}_image.tif`;
-  const cutline_param = cutline ? `-cutline ${cutline} -crop_to_cutline` : '';
-  await execute_process('gdalwarp', [
-    '-te',
-    bounds[0],
-    bounds[1],
-    bounds[2],
-    bounds[3],
-    '-ts',
-    shapes[1],
-    shapes[0],
-    '-t_srs',
-    'EPSG:4326',
-    cutline_param,
-    '-co',
-    'COMPRESS=ZSTD',
-    '-wm',
-    '8G',
-    '-multi',
-    '-wo',
-    'NUM_THREADS=ALL_CPUS',
-    '-overwrite',
-    vrt,
-    tif,
-  ]);
+
+  if (cutline) {
+    await execute_process('gdalwarp', [
+      '-te',
+      bounds[0],
+      bounds[3],
+      bounds[2],
+      bounds[1],
+      '-ts',
+      shapes[1],
+      shapes[0],
+      '-cutline',
+      cutline,
+      '-crop_cutline',
+      '-overwrite',
+      vrt,
+      tif,
+    ]);
+  } else {
+    await execute_process('gdal_translate', [
+      '-projwin',
+      bounds[0],
+      bounds[3],
+      bounds[2],
+      bounds[1],
+      '-outsize',
+      shapes[1],
+      shapes[0],
+      vrt,
+      tif,
+    ]);
+  }
+
   return tif;
 }
