@@ -121,6 +121,8 @@ export async function generate_image(
     '-outsize',
     256,
     256,
+    '-r',
+    'bilinear',
     withAlpha,
     rescale,
   ]);
