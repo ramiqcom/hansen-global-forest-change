@@ -1,7 +1,10 @@
 services:
-  frontend:
+  hansen-gfc-base:
     platform: linux/amd64
-    build: frontend
+    build: .
+    image: gcr.io/ee-ramiqcom/hansen-global-forest-change:latest
+  hansen-gfc-frontend:
+    image: gcr.io/ee-ramiqcom/hansen-global-forest-change:latest
     container_name: hansen-gfc-frontend
     ports:
       - 3000:3000
@@ -9,11 +12,13 @@ services:
       - mynetwork
     env_file:
       - frontend/.env
+    environment:
+      - COG_SERVER=http://hansen-gfc-backend:8000
     cpu_count: 1
     mem_limit: 2g
-  backend:
-    platform: linux/amd64
-    build: backend
+    command: ["npm", "run", "start", '--prefix', "frontend", "--", "--port", "3000"]
+  hansen-gfc-backend:
+    image: gcr.io/ee-ramiqcom/hansen-global-forest-change:latest
     container_name: hansen-gfc-backend
     ports:
       - 8000:8000
@@ -23,6 +28,7 @@ services:
       - backend/.env
     cpu_count: 8
     mem_limit: 32g
+    command: ["npm", "start", '--prefix', "backend", "--", "--port", "8000"]
 
 networks:
   mynetwork:
