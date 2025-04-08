@@ -30,18 +30,21 @@ export async function generate_image(
     )
     .join('\n');
 
-  // Text file of the color data
+  // Text file of the color data path
   const colorFile = `${tmpFolder}/color.txt`;
-  await writeFile(colorFile, colorMap);
 
   // Create an image
-  let tif = await warp_cog(polygon, layer == 'forest_cover' ? 'treecover2000' : layer, tmpFolder);
+  let tif: string;
 
   // Mask the raster if it is treecover2000 or forest cover
   if (layer == 'treecover2000' || layer == 'forest_cover') {
     // Mask non forest based on year
     // Generate forest loss layer
-    const forest_loss_tif = await warp_cog(polygon, 'lossyear', tmpFolder);
+    const [treecover2000_tif, forest_loss_tif] = await Promise.all([
+      warp_cog(polygon, 'treecover2000', tmpFolder),
+      warp_cog(polygon, 'lossyear', tmpFolder),
+      writeFile(colorFile, colorMap),
+    ]);
 
     let formula = `A*logical_or(B==0,B>(${year}-2000))`;
     if (layer == 'forest_cover') {
@@ -52,7 +55,7 @@ export async function generate_image(
     const masked_tif = `${tmpFolder}/masked.tif`;
     await execute_process('gdal_calc', [
       '-A',
-      tif,
+      treecover2000_tif,
       '-B',
       forest_loss_tif,
       `--calc="${formula}"`,
@@ -62,33 +65,32 @@ export async function generate_image(
       '--co="COMPRESS=ZSTD"',
     ]);
     tif = masked_tif;
+  } else {
+    const [forest_loss_tif] = await Promise.all([
+      warp_cog(polygon, layer, tmpFolder),
+      writeFile(colorFile, colorMap),
+    ]);
+    tif = forest_loss_tif;
   }
 
-  // Get the alpha band
+  // Alpha band path
   const alpha = `${tmpFolder}/alpha.tif`;
 
-  // Create masked data or alpha band
-  await execute_process('gdal_calc', [
-    '-A',
-    tif,
-    `--outfile=${alpha}`,
-    `--calc="(A!=0)*255"`,
-    '--type=Byte',
-    '--hideNoData',
-    '--co="COMPRESS=ZSTD"',
-  ]);
-
-  // Color it with gdaldem
+  // Colored data path
   const colored = `${tmpFolder}/colored.tif`;
-  await execute_process('gdaldem', [
-    'color-relief',
-    tif,
-    colorFile,
-    colored,
-    '-of',
-    'WEBP',
-    '-b',
-    1,
+
+  // Run alpha and colored data
+  await Promise.all([
+    execute_process('gdal_calc', [
+      '-A',
+      tif,
+      `--outfile=${alpha}`,
+      `--calc="(A!=0)*255"`,
+      '--type=Byte',
+      '--hideNoData',
+      '--co="COMPRESS=ZSTD"',
+    ]),
+    execute_process('gdaldem', ['color-relief', tif, colorFile, colored, '-of', 'WEBP', '-b', 1]),
   ]);
 
   // Combine with alpha band
@@ -141,18 +143,11 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   const shape = [height, width];
 
   // Generate forest cover
-  console.log('Generate forest cover');
-  const treecover_tif = await warp_cog(
-    polygonBounds,
-    'treecover2000',
-    tmpFolder,
-    shape,
-    geojsonFile,
-  );
-
-  // Generate forest loss
-  console.log('Generate forest loss');
-  const forest_loss_tif = await warp_cog(polygonBounds, 'lossyear', tmpFolder, shape, geojsonFile);
+  console.log('Generate forest cover and forest loss');
+  const [treecover_tif, forest_loss_tif] = await Promise.all([
+    warp_cog(polygonBounds, 'treecover2000', tmpFolder, shape, geojsonFile),
+    warp_cog(polygonBounds, 'lossyear', tmpFolder, shape, geojsonFile),
+  ]);
 
   // Run analysis
   const years = [];
