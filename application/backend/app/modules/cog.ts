@@ -41,8 +41,8 @@ export async function generate_image(
     // Mask non forest based on year
     // Generate forest loss layer
     const [treecover2000_tif, forest_loss_tif] = await Promise.all([
-      warp_cog(polygon, 'treecover2000', tmpFolder),
-      warp_cog(polygon, 'lossyear', tmpFolder),
+      warp_image(polygon, 'treecover2000', tmpFolder),
+      warp_image(polygon, 'lossyear', tmpFolder),
       writeFile(colorFile, colorMap),
     ]);
 
@@ -67,7 +67,7 @@ export async function generate_image(
     tif = masked_tif;
   } else {
     const [forest_loss_tif] = await Promise.all([
-      warp_cog(polygon, layer, tmpFolder),
+      warp_image(polygon, layer, tmpFolder),
       writeFile(colorFile, colorMap),
     ]);
     tif = forest_loss_tif;
@@ -145,8 +145,8 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   // Generate forest cover
   console.log('Generate forest cover and forest loss');
   const [treecover_tif, forest_loss_tif] = await Promise.all([
-    warp_cog(polygonBounds, 'treecover2000', tmpFolder, shape, geojsonFile),
-    warp_cog(polygonBounds, 'lossyear', tmpFolder, shape, geojsonFile),
+    warp_image(polygonBounds, 'treecover2000', tmpFolder, shape, geojsonFile),
+    warp_image(polygonBounds, 'lossyear', tmpFolder, shape, geojsonFile),
   ]);
 
   // Run analysis
@@ -203,7 +203,7 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
 }
 
 // Function to warp and clip image
-async function warp_cog(
+async function warp_image(
   polygon: GeoJSON.Polygon,
   layer: string,
   tmpFolder: string,
@@ -250,8 +250,6 @@ async function warp_cog(
     '-t_srs',
     'EPSG:4326',
     cutline_param,
-    '-of',
-    'COG',
     '-co',
     'COMPRESS=ZSTD',
     '-wm',
