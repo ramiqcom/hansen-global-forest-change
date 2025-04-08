@@ -62,7 +62,7 @@ if (cluster.isPrimary) {
     const tmpFolder = await mkdtemp('temp_');
     try {
       const data = await hansen_data(req, tmpFolder);
-      res.status(200).type('application/json').send(data);
+      res.status(200).type('application/zip').send(data);
     } finally {
       // Delete temp folder
       await rm(tmpFolder, { recursive: true, force: true });

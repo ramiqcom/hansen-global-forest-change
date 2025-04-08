@@ -3,7 +3,7 @@ import { bbox, bboxPolygon, booleanIntersects } from '@turf/turf';
 import Color from 'color';
 import { FastifyRequest } from 'fastify';
 import { readFile, writeFile } from 'fs/promises';
-import { execute_process } from './server_util';
+import { createZip, execute_process } from './server_util';
 
 export async function load_hansen_tiles(polygon: GeoJSON.Polygon): Promise<string[]> {
   // Load tiles collection to filter
@@ -121,6 +121,8 @@ export async function generate_image(
     '-outsize',
     256,
     256,
+    '-r',
+    'bilinear',
     withAlpha,
     rescale,
   ]);
@@ -200,12 +202,26 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   const forestYearsVrt = `${tmpFolder}/forest_years.vrt`;
   await execute_process('gdalbuildvrt', ['-separate', forestYearsVrt, forestAreaPerYear.join(' ')]);
 
-  // Calculate the statistics
-  console.log('Calculate forest statistics');
-  const statistics = `${tmpFolder}/statistics.json`;
-  await execute_process('gdalinfo', ['-json', '-stats', '-hist', forestYearsVrt, '>', statistics]);
+  // Make the vrt into tif
+  const forestYearsTif = `${tmpFolder}/forest_years.tif`;
 
-  // Read the statistics
+  // Calculate the statistics
+  const statistics = `${tmpFolder}/statistics.json`;
+
+  console.log('Calculate forest statistics and make it into tif');
+  await Promise.all([
+    execute_process('gdalinfo', ['-json', '-stats', '-hist', forestYearsVrt, '>', statistics]),
+    execute_process('gdal_translate', [
+      '-of',
+      'COG',
+      '-co',
+      'COMPRESS=ZSTD',
+      forestYearsVrt,
+      forestYearsTif,
+    ]),
+  ]);
+
+  // Calculate the area of forest data
   const areaHa = JSON.parse(await readFile(statistics, 'utf8'))['bands'].map(
     (band) => (band['histogram']['buckets'][1] * 900) / 10_000,
   );
@@ -213,7 +229,20 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   // Result
   const table = Object.fromEntries(years.map((year, index) => [year, areaHa[index]]));
 
-  return table;
+  // Save the table as json
+  const tableJson = `${tmpFolder}/table.json`;
+  await writeFile(tableJson, JSON.stringify(table));
+
+  // Create a zip
+  const zipPath = `${tmpFolder}/data.zip`;
+  await createZip(zipPath, [
+    { path: tableJson, name: 'table.json' },
+    { path: forestYearsTif, name: 'layer.tif' },
+  ]);
+
+  // Read the data
+  const zipBuffer = await readFile(zipPath);
+  return zipBuffer;
 }
 
 // Function to warp and clip image
@@ -247,9 +276,9 @@ async function warp_image(
     await execute_process('gdalwarp', [
       '-te',
       bounds[0],
-      bounds[3],
-      bounds[2],
       bounds[1],
+      bounds[2],
+      bounds[3],
       '-ts',
       shapes[1],
       shapes[0],
