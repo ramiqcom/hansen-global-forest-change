@@ -276,6 +276,8 @@ async function warp_image(
 
   if (cutline) {
     await execute_process('gdalwarp', [
+      '-r',
+      'bilinear',
       '-te',
       bounds[0],
       bounds[1],
@@ -298,6 +300,8 @@ async function warp_image(
     ]);
   } else {
     await execute_process('gdal_translate', [
+      '-r',
+      'bilinear',
       '-projwin',
       bounds[0],
       bounds[3],
