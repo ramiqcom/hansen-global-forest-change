@@ -5,11 +5,13 @@ import { FastifyRequest } from 'fastify';
 import { readFile, writeFile } from 'fs/promises';
 import { createZip, execute_process } from './server_util';
 
-export async function load_hansen_tiles(polygon: GeoJSON.Polygon): Promise<string[]> {
+export async function load_hansen_tiles(
+  polygon: GeoJSON.Polygon | GeoJSON.Geometry,
+): Promise<string[]> {
   // Load tiles collection to filter
-  const tiles: GeoJSON.FeatureCollection<any> = await (
-    await fetch(process.env.HANSEN_TILES_COLLECTION)
-  ).json();
+  const tiles = (await (
+    await fetch(process.env.HANSEN_TILES_COLLECTION as string)
+  ).json()) as GeoJSON.FeatureCollection<any, { string: any }>;
 
   // Tile ids
   const tileIds = tiles.features
@@ -167,7 +169,7 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   ]);
 
   // Run analysis
-  const years = [];
+  const years: number[] = [];
   for (let year = 2000; year <= 2023; year++) {
     years.push(year);
   }
@@ -247,7 +249,7 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
 
 // Function to warp and clip image
 async function warp_image(
-  polygon: GeoJSON.Polygon,
+  polygon: GeoJSON.Polygon | GeoJSON.Geometry,
   layer: string,
   tiles: string[],
   tmpFolder: string,

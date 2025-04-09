@@ -1,16 +1,17 @@
 {
-  "name": "cog-server-js",
+  "name": "hansen-gfc-backend",
   "version": "1.0.0",
   "description": "",
-  "main": "index.ts",
   "type": "module",
   "scripts": {
-    "start": "npx nodemon",
+    "pretest": "eslint",
+    "start": "npx tsx src/app.ts",
+    "dev": "npx nodemon",
     "test": "echo \"Error: no test specified\" && exit 1",
     "lint": "eslint . --ext .ts"
   },
   "engines": {
-    "node": "^20"
+    "node": "^22"
   },
   "author": "",
   "license": "ISC",
@@ -27,12 +28,11 @@
     "fastify": "^4.29.0",
     "nodemon": "^3.1.9",
     "prettier": "^3.5.3",
-    "ts-node": "^10.9.2",
     "tsx": "^4.19.3",
-    "typescript": "^5.8.2",
     "wellknown": "^0.5.0"
   },
   "devDependencies": {
-    "@types/node": "^22.14.0"
+    "@types/node": "^22.14.0",
+    "typescript": "^5.8.3"
   }
 }

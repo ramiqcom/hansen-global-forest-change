@@ -1,9 +1,9 @@
 {
-  "name": "hansen-global-forest-change",
+  "name": "hansen-gfc-frontend",
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": "^20"
+    "node": "^22"
   },
   "scripts": {
     "dev": "next dev",
@@ -24,7 +24,7 @@
     "wellknown": "^0.5.0"
   },
   "devDependencies": {
-    "@types/node": "^20.17.30",
+    "@types/node": "^22.14.0",
     "@types/react": "^18.3.20",
     "@types/react-dom": "^18.3.5",
     "eslint": "^8.57.1",
