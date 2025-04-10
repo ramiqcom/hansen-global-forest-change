@@ -264,14 +264,23 @@ async function warp_image(
   // Hansen layer prefix
   const hansen_prefix = process.env.HANSEN_LAYER_PREFIX;
 
-  // Get the layer url
-  const image_urls = tiles
-    .map((tile_id) => `"/vsicurl/${hansen_prefix}${layer}_${tile_id}.tif"`)
-    .join(' ');
+  // Conditional if tile_id is more than one
+  let layerPath: string;
 
-  // Create VRT
-  const vrt = `${tmpFolder}/${layer}_collection.vrt`;
-  await execute_process('gdalbuildvrt', ['-overwrite', vrt, image_urls]);
+  if (tiles.length > 1) {
+    // Get the layer url
+    const image_urls = tiles
+      .map((tile_id) => `"/vsicurl/${hansen_prefix}${layer}_${tile_id}.tif"`)
+      .join(' ');
+
+    // Create VRT
+    const vrt = `${tmpFolder}/${layer}_collection.vrt`;
+    await execute_process('gdalbuildvrt', ['-overwrite', vrt, image_urls]);
+
+    layerPath = vrt;
+  } else {
+    layerPath = `"/vsicurl/${hansen_prefix}${layer}_${tiles[0]}.tif"`;
+  }
 
   // Create an image
   const tif = `${tmpFolder}/${layer}_image.tif`;
@@ -297,7 +306,7 @@ async function warp_image(
       '-multi',
       '-wo',
       'NUM_THREADS=ALL_CPUS',
-      vrt,
+      layerPath,
       tif,
     ]);
   } else {
@@ -312,7 +321,7 @@ async function warp_image(
       '-outsize',
       shapes[1],
       shapes[0],
-      vrt,
+      layerPath,
       tif,
     ]);
   }
