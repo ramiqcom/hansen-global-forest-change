@@ -160,4 +160,6 @@ jobs:
             --allow-unauthenticated \
             --command="npm" \
             --args="start","--prefix","backend","--","--port","8000" \
-            --update-env-vars HANSEN_TILES_COLLECTION=${{ env.HANSEN_TILES_COLLECTION }},HANSEN_LAYER_PREFIX=${{ env.HANSEN_LAYER_PREFIX }}
+            --update-env-vars HANSEN_TILES_COLLECTION=${{ env.HANSEN_TILES_COLLECTION }},HANSEN_LAYER_PREFIX=${{ env.HANSEN_LAYER_PREFIX }} \
+            --concurrency 16 \
+            --min-instances 8

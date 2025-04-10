@@ -120,6 +120,8 @@ export async function generate_image(
   await execute_process('gdal_translate', [
     '-of',
     'WEBP',
+    '-co',
+    'QUALITY=90',
     '-outsize',
     256,
     256,
@@ -253,7 +255,7 @@ async function warp_image(
   layer: string,
   tiles: string[],
   tmpFolder: string,
-  shapes: number[] = [256, 256],
+  shapes: number[] = [512, 512],
   cutline?: string,
 ) {
   // Bounds
