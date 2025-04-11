@@ -1,3 +1,4 @@
+import fastifyRequestContext from '@fastify/request-context';
 import cluster from 'cluster';
 import { config } from 'dotenv';
 import fastify from 'fastify';
@@ -18,6 +19,12 @@ const host = '0.0.0.0';
 // CPU
 const numCPUs = cpus.availableParallelism();
 
+declare module '@fastify/request-context' {
+  interface RequestContextData {
+    tmpFolder: string;
+  }
+}
+
 // Create cluster
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -36,13 +43,47 @@ if (cluster.isPrimary) {
     trustProxy: true,
   });
 
+  app.register(fastifyRequestContext);
+
   // If the request is aborted then throw error
   app.addHook('onRequest', async (request, reply) => {
-    request.raw.on('close', () => {
+    // Temporary directory
+    const tmpFolder = await mkdtemp('temp_');
+    request.requestContext.set('tmpFolder', tmpFolder);
+
+    request.raw.on('close', async () => {
       if (request.raw.aborted) {
-        throw new Error('Request is aborted is aborted');
+        await rm(tmpFolder, { recursive: true, force: true });
+        throw new Error('Request is aborted');
       }
     });
+  });
+
+  // Get route
+  app.get('/cog/:z/:x/:y', async (req, res) => {
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    const image = await generate_image(req, tmpFolder);
+    res.status(200).type('webp').send(image);
+  });
+
+  // Analysis route
+  app.post('/analysis', async (req, res) => {
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    const data = await hansen_data(req, tmpFolder);
+    res.status(200).type('application/zip').send(data);
+  });
+
+  // On close
+  app.addHook('onResponse', async (req, res) => {
+    // Delete temp folder
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    await rm(tmpFolder, { recursive: true, force: true });
+  });
+
+  // On error
+  app.addHook('onError', async (req) => {
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    await rm(tmpFolder, { recursive: true, force: true });
   });
 
   // Error handler
@@ -50,32 +91,6 @@ if (cluster.isPrimary) {
     const { message } = error;
     console.error(message);
     res.status(404).send({ message, status: 404 }).header('Content-Type', 'application/json');
-  });
-
-  // Get route
-  app.get('/cog/:z/:x/:y', async (req, res) => {
-    // Temporary directory
-    const tmpFolder = await mkdtemp('temp_');
-    try {
-      const image = await generate_image(req, tmpFolder);
-      res.status(200).type('webp').send(image);
-    } finally {
-      // Delete temp folder
-      await rm(tmpFolder, { recursive: true, force: true });
-    }
-  });
-
-  // Analysis route
-  app.post('/analysis', async (req, res) => {
-    // Temporary directory
-    const tmpFolder = await mkdtemp('temp_');
-    try {
-      const data = await hansen_data(req, tmpFolder);
-      res.status(200).type('application/zip').send(data);
-    } finally {
-      // Delete temp folder
-      await rm(tmpFolder, { recursive: true, force: true });
-    }
   });
 
   // Run the appss
