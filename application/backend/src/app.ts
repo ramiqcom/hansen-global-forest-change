@@ -36,6 +36,15 @@ if (cluster.isPrimary) {
     trustProxy: true,
   });
 
+  // If the request is aborted then throw error
+  app.addHook('onRequest', async (request, reply) => {
+    request.raw.on('close', () => {
+      if (request.raw.aborted) {
+        throw new Error('Request is aborted is aborted');
+      }
+    });
+  });
+
   // Error handler
   app.setErrorHandler(async (error, req, res) => {
     const { message } = error;
