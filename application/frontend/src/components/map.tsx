@@ -1,6 +1,6 @@
 import { Store } from '@/modules/store';
 import { bbox } from '@turf/turf';
-import { GeoJSONSource, Map, RasterTileSource } from 'maplibre-gl';
+import { GeoJSONSource, Map, MapDataEvent, RasterTileSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { useContext, useEffect, useState } from 'react';
 
@@ -13,6 +13,18 @@ export default function MapCanvas() {
   const divId = 'map';
   const cogId = 'cog';
   const geojsonSourceId = 'geojson';
+
+  function loadingLayer(e: MapDataEvent) {
+    // @ts-ignore
+    if (e.sourceId == cogId) {
+      // @ts-ignore
+      if (!e.isSourceLoaded) {
+        setStatus({ message: `${layer.label} is loading...`, type: 'other' });
+      } else {
+        setStatus({ message: `${layer.label} is loaded`, type: 'other' });
+      }
+    }
+  }
 
   // Load maplibre at the first time
   useEffect(() => {
@@ -45,17 +57,7 @@ export default function MapCanvas() {
         setStatus({ message: 'Map loaded', type: 'success' });
       });
 
-      map.on('data', (e) => {
-        // @ts-ignore
-        if (e.sourceId == cogId) {
-          // @ts-ignore
-          if (!e.isSourceLoaded) {
-            setStatus({ message: `${layer.label} is loading...`, type: 'other' });
-          } else {
-            setStatus({ message: `${layer.label} is loaded`, type: 'other' });
-          }
-        }
-      });
+      map.on('data', loadingLayer);
     } catch ({ message }) {
       setStatus({ message, type: 'failed' });
     }
@@ -78,6 +80,7 @@ export default function MapCanvas() {
 
       // Change or add layers
       if (source) {
+        map.off('data', loadingLayer);
         map.removeLayer(cogId);
         map.removeSource(cogId);
       }
@@ -94,6 +97,8 @@ export default function MapCanvas() {
         id: cogId,
         type: 'raster',
       });
+
+      map.on('data', loadingLayer);
     }
   }, [mapLoaded, layer, year, minForestCover]);
 
