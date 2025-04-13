@@ -62,63 +62,70 @@ if (cluster.isPrimary) {
     request.requestContext.set('tmpFolder', tmpFolder);
 
     request.raw.on('close', async () => {
-      if (request.raw.aborted) {
-        await deleteTempFolder(undefined, tmpFolder);
-      }
+      await deleteTempFolder(undefined, tmpFolder);
     });
   });
 
   // Route for visualization using COG to webmap
   app.get<COGRoute>('/cog/:z/:x/:y', COGSchema, async (req, res) => {
-    // Parse the input
-    const { z, x, y } = req.params;
-    const { layer, palette, min, max, year, min_forest_cover } = req.query;
     const tmpFolder = req.requestContext.get('tmpFolder') as string;
-    const image = await generate_image({
-      z,
-      x,
-      y,
-      layer,
-      palette,
-      min,
-      max,
-      year,
-      min_forest_cover,
-      tmpFolder,
-    });
-    res.status(200).type('webp').send(image);
+
+    try {
+      // Parse the input
+      const { z, x, y } = req.params;
+      const { layer, palette, min, max, year, min_forest_cover } = req.query;
+      const image = await generate_image({
+        z,
+        x,
+        y,
+        layer,
+        palette,
+        min,
+        max,
+        year,
+        min_forest_cover,
+        tmpFolder,
+      });
+      res.status(200).type('webp').send(image);
+    } finally {
+      await deleteTempFolder(req);
+    }
   });
 
   // Analysis route
   app.post<AnalysisRoute>('/analysis', AnalysisSchema, async (req, res) => {
-    // Read geojson from body
-    const { geojson } = req.body;
     const tmpFolder = req.requestContext.get('tmpFolder') as string;
-    const data = await hansen_data({ geojson, tmpFolder });
-    res.status(200).type('application/json').send(data);
+
+    try {
+      // Read geojson from body
+      const { geojson } = req.body;
+      const data = await hansen_data({ geojson, tmpFolder });
+      res.status(200).type('application/json').send(data);
+    } finally {
+      await deleteTempFolder(req);
+    }
   });
 
   // Analysis route
   app.get<DownloadRoute>('/download', DownloadSchema, async (req, res) => {
-    const bounds = req.query.bounds.split(',').map((x) => Number(x));
-    const geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }> = {
-      type: 'FeatureCollection',
-      features: [bboxPolygon(bounds as [number, number, number, number])],
-    };
     const tmpFolder = req.requestContext.get('tmpFolder') as string;
-    const image_path = await hansen_layer({ geojson, tmpFolder });
-    const image_buffer = await readFile(image_path);
-    res.status(200).type('image/tif').send(image_buffer);
+    try {
+      const bounds = req.query.bounds.split(',').map((x) => Number(x));
+      const geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }> = {
+        type: 'FeatureCollection',
+        features: [bboxPolygon(bounds as [number, number, number, number])],
+      };
+      const image_path = await hansen_layer({ geojson, tmpFolder });
+      const image_buffer = await readFile(image_path);
+      res.status(200).type('image/tif').send(image_buffer);
+    } finally {
+      await deleteTempFolder(req);
+    }
   });
-
-  // On close
-  app.addHook('onResponse', async (req) => await deleteTempFolder(req));
-
-  // On error
-  app.addHook('onError', async (req) => await deleteTempFolder(req));
 
   // Error handler
   app.setErrorHandler(async (error, req, res) => {
+    await deleteTempFolder(req);
     const { message } = error;
     console.error(message);
     res.status(404).send({ message, status: 404 }).header('Content-Type', 'application/json');
@@ -130,7 +137,6 @@ if (cluster.isPrimary) {
     console.log(`Listening on ${address}`);
   } catch (err) {
     console.error(err);
-    process.exit(1);
   }
 
   console.log(`Worker ${process.pid} started`);

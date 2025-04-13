@@ -101,36 +101,56 @@ function Analysis() {
   return (
     <div className='section flexible vertical gap'>
       <UploadFile />
-      <button
-        disabled={typeof geojson == 'undefined' || status.type == 'process'}
-        onClick={async () => {
-          try {
-            setStatus({ type: 'process', message: 'Calculating data' });
-            const data = await analysis_hansen(geojson);
-            // const layerUrl = URL.createObjectURL(new Blob([layer], { type: 'image/tif' }));
-            setDataTable(data);
-            // setDownloadLayer(layerUrl);
-            setStatus({ type: 'success', message: 'Data calculated' });
-          } catch ({ message }) {
-            setStatus({ type: 'failed', message });
-          }
-        }}
-      >
-        Run analysis
-      </button>{' '}
-      {dataTable ? (
-        <canvas
-          id={chartId}
-          hidden={typeof dataTable == 'undefined' || status.type == 'process'}
-          style={{
-            width: '100%',
-            height: '20vh',
-            backgroundColor: 'white',
-          }}
-        />
-      ) : null}
       <div className='flexible small-gap wide'>
-        {dataTable ? (
+        <button
+          style={{ width: '100%' }}
+          disabled={typeof geojson == 'undefined' || status.type == 'process'}
+          onClick={async () => {
+            try {
+              setStatus({ type: 'process', message: 'Calculating data' });
+              const data = await analysis_hansen(geojson);
+              // const layerUrl = URL.createObjectURL(new Blob([layer], { type: 'image/tif' }));
+              setDataTable(data);
+              // setDownloadLayer(layerUrl);
+              setStatus({ type: 'success', message: 'Data calculated' });
+            } catch ({ message }) {
+              setStatus({ type: 'failed', message });
+            }
+          }}
+        >
+          Run analysis
+        </button>
+        {bounds ? (
+          <a
+            href={`/download?bounds=${bounds.join(',')}`}
+            download='forest_years.tif'
+            style={{ width: '100%' }}
+          >
+            <button
+              disabled={typeof bounds == 'undefined' || status.type == 'process'}
+              style={{ width: '100%' }}
+              onClick={async () => {
+                setStatus({ message: 'Preparing layer to download', type: 'process' });
+                await new Promise((resolve, reject) => setTimeout(() => resolve(0), 1e4));
+                setStatus({ message: 'Downloading layer', type: 'success' });
+              }}
+            >
+              Download layer
+            </button>
+          </a>
+        ) : null}
+      </div>
+      {dataTable ? (
+        <div className='flexible small-gap wide'>
+          <canvas
+            id={chartId}
+            hidden={typeof dataTable == 'undefined' || status.type == 'process'}
+            style={{
+              width: '100%',
+              height: '20vh',
+              backgroundColor: 'white',
+            }}
+          />
           <a href={downloadData} download='forest_area.csv' style={{ width: '100%' }}>
             <button
               style={{ width: '100%' }}
@@ -139,22 +159,8 @@ function Analysis() {
               Download data
             </button>
           </a>
-        ) : null}
-        {bounds ? (
-          <a
-            href={`/download?bounds=${bounds.join(',')}`}
-            download='forest_years.tif'
-            style={{ width: '100%' }}
-          >
-            <button
-              style={{ width: '100%' }}
-              disabled={typeof bounds == 'undefined' || status.type == 'process'}
-            >
-              Download layer
-            </button>
-          </a>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -283,7 +289,7 @@ function UploadFile() {
 
   return (
     <div className='flexible vertical small-gap'>
-      Upload your region of interest in geojson format for analysis
+      Upload your region of interest in geojson format for analysis or download the layer
       <input
         type='file'
         accept='.geojson,.json'

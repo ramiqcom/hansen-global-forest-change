@@ -5,7 +5,6 @@ export async function GET(req: NextRequest) {
     const { nextUrl } = req;
     const { pathname, search } = nextUrl;
 
-    console.log(`${process.env.COG_SERVER}${pathname}${search}`);
     const res = await fetch(`${process.env.COG_SERVER}${pathname}${search}`);
 
     if (res.ok) {
