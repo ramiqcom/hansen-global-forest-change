@@ -70,7 +70,7 @@ if (cluster.isPrimary) {
   app.post('/analysis', async (req, res) => {
     const tmpFolder = req.requestContext.get('tmpFolder') as string;
     const data = await hansen_data(req, tmpFolder);
-    res.status(200).type('application/zip').send(data);
+    res.status(200).type('application/json').send(data);
   });
 
   // On close

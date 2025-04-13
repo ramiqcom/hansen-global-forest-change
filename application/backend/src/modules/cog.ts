@@ -3,7 +3,7 @@ import { bbox, bboxPolygon, booleanIntersects } from '@turf/turf';
 import Color from 'color';
 import { FastifyRequest } from 'fastify';
 import { readFile, writeFile } from 'fs/promises';
-import { createZip, execute_process } from './server_util';
+import { execute_process } from './server_util';
 
 export async function load_hansen_tiles(
   polygon: GeoJSON.Polygon | GeoJSON.Geometry,
@@ -227,22 +227,9 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   );
 
   // Result
-  const table = Object.fromEntries(years.map((year, index) => [year, areaHa[index]]));
+  const table = years.map((year, index) => new Object({ year, areaHa: areaHa[index] }));
 
-  // Save the table as json
-  const tableJson = `${tmpFolder}/table.json`;
-  await writeFile(tableJson, JSON.stringify(table));
-
-  // Create a zip
-  const zipPath = `${tmpFolder}/data.zip`;
-  await createZip(zipPath, [
-    { path: tableJson, name: 'table.json' },
-    { path: forestYearsTif, name: 'layer.tif' },
-  ]);
-
-  // Read the data
-  const zipBuffer = await readFile(zipPath);
-  return zipBuffer;
+  return table;
 }
 
 // Function to warp and clip image

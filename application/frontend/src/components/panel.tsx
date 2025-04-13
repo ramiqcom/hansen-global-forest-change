@@ -25,7 +25,7 @@ export default function Panel() {
 
 function Analysis() {
   const { geojson, setStatus, status } = useContext(Store);
-  const [dataTable, setDataTable] = useState<Record<string, number>>();
+  const [dataTable, setDataTable] = useState<Record<string, any>[]>();
   const [downloadData, setDownloadData] = useState<string>();
   const [downloadLayer, setDownloadLayer] = useState<string>();
   const chartId = 'chart';
@@ -33,8 +33,8 @@ function Analysis() {
   useEffect(() => {
     if (dataTable) {
       // Create downloadlink
-      const labels = Object.keys(dataTable);
-      const values = Object.values(dataTable);
+      const labels = dataTable.map((dict) => dict.year);
+      const values = dataTable.map((dict) => dict.areaHa);
       let csv = labels.map((label, index) => `${label},${values[index]}`).join('\n');
       csv = `year,forest_area\n${csv}`;
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -99,10 +99,10 @@ function Analysis() {
         onClick={async () => {
           try {
             setStatus({ type: 'process', message: 'Calculating data' });
-            const { table, layer } = await analysis_hansen(geojson);
-            const layerUrl = URL.createObjectURL(new Blob([layer], { type: 'image/tif' }));
-            setDataTable(table);
-            setDownloadLayer(layerUrl);
+            const data = await analysis_hansen(geojson);
+            // const layerUrl = URL.createObjectURL(new Blob([layer], { type: 'image/tif' }));
+            setDataTable(data);
+            // setDownloadLayer(layerUrl);
             setStatus({ type: 'success', message: 'Data calculated' });
           } catch ({ message }) {
             setStatus({ type: 'failed', message });
