@@ -34,8 +34,9 @@ if (cluster.isPrimary) {
     cluster.fork();
   }
 
-  cluster.on('exit', (worker, code, signal) => {
-    console.log(`worker ${worker.process.pid} died`);
+  cluster.on('exit', async (worker, code, signal) => {
+    console.log(`worker ${worker.process.pid} died\nRestarting...`);
+    cluster.fork();
   });
 } else {
   // App setting
@@ -50,6 +51,10 @@ if (cluster.isPrimary) {
     // Temporary directory
     const tmpFolder = await mkdtemp('temp_');
     request.requestContext.set('tmpFolder', tmpFolder);
+
+    request.raw.on('close', async () => {
+      await deleteTempFolder(undefined, tmpFolder);
+    });
   });
 
   // Get route
@@ -76,7 +81,6 @@ if (cluster.isPrimary) {
   app.setErrorHandler(async (error, req, res) => {
     const { message } = error;
     console.error(message);
-    await deleteTempFolder(req);
     res.status(404).send({ message, status: 404 }).header('Content-Type', 'application/json');
   });
 
@@ -85,14 +89,18 @@ if (cluster.isPrimary) {
     const address = await app.listen({ port, host });
     console.log(`Listening on ${address}`);
   } catch (err) {
-    console.log(err);
+    console.error(err);
     process.exit(1);
   }
 
   console.log(`Worker ${process.pid} started`);
 }
 
-async function deleteTempFolder(req: FastifyRequest) {
-  const tmpFolder = req.requestContext.get('tmpFolder') as string;
-  await rm(tmpFolder, { recursive: true, force: true });
+async function deleteTempFolder(req?: FastifyRequest, folder?: string) {
+  if (folder) {
+    await rm(folder, { recursive: true, force: true });
+  } else if (req) {
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    await rm(tmpFolder, { recursive: true, force: true });
+  }
 }
