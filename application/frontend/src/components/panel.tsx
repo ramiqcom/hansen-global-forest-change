@@ -1,5 +1,6 @@
 import { analysis_hansen } from '@/modules/analysis';
 import { Store } from '@/modules/store';
+import { bbox } from '@turf/turf';
 import { Chart } from 'chart.js/auto';
 import { useContext, useEffect, useState } from 'react';
 export default function Panel() {
@@ -25,10 +26,16 @@ export default function Panel() {
 
 function Analysis() {
   const { geojson, setStatus, status } = useContext(Store);
+  const [bounds, setBounds] = useState<number[]>();
   const [dataTable, setDataTable] = useState<Record<string, any>[]>();
   const [downloadData, setDownloadData] = useState<string>();
-  const [downloadLayer, setDownloadLayer] = useState<string>();
   const chartId = 'chart';
+
+  useEffect(() => {
+    if (geojson) {
+      setBounds(bbox(geojson));
+    }
+  }, [geojson]);
 
   useEffect(() => {
     if (dataTable) {
@@ -133,11 +140,15 @@ function Analysis() {
             </button>
           </a>
         ) : null}
-        {downloadLayer ? (
-          <a href={downloadLayer} download='forest_years.tif' style={{ width: '100%' }}>
+        {bounds ? (
+          <a
+            href={`/download?bounds=${bounds.join(',')}`}
+            download='forest_years.tif'
+            style={{ width: '100%' }}
+          >
             <button
               style={{ width: '100%' }}
-              disabled={typeof downloadLayer == 'undefined' || status.type == 'process'}
+              disabled={typeof bounds == 'undefined' || status.type == 'process'}
             >
               Download layer
             </button>

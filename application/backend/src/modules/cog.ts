@@ -1,9 +1,14 @@
 import { tileToGeoJSON } from '@mapbox/tilebelt';
 import { bbox, bboxPolygon, booleanIntersects } from '@turf/turf';
 import Color from 'color';
-import { FastifyRequest } from 'fastify';
 import { readFile, writeFile } from 'fs/promises';
 import { execute_process } from './server_util';
+
+// Hansen data years
+const years: number[] = [];
+for (let year = 2000; year <= 2023; year++) {
+  years.push(year);
+}
 
 export async function load_hansen_tiles(
   polygon: GeoJSON.Polygon | GeoJSON.Geometry,
@@ -22,21 +27,31 @@ export async function load_hansen_tiles(
 }
 
 // Function to generate image
-export async function generate_image(
-  req: FastifyRequest,
-  tmpFolder: string,
-): Promise<Buffer<ArrayBufferLike>> {
-  const { z, x, y } = req.params as Record<string, number>;
-  const { layer, palette, min, max, year, min_forest_cover } = req.query as {
-    layer: string;
-    year?: number;
-    min_forest_cover?: number;
-    palette: string;
-    min: number;
-    max: number;
-  };
+export async function generate_image({
+  z,
+  x,
+  y,
+  layer,
+  palette,
+  min,
+  max,
+  year,
+  min_forest_cover,
+  tmpFolder,
+}: {
+  z: number;
+  x: number;
+  y: number;
+  layer: string;
+  palette: string;
+  min: number;
+  max: number;
+  year?: number;
+  min_forest_cover?: number;
+  tmpFolder: string;
+}): Promise<Buffer<ArrayBufferLike>> {
   // Polygon based on tile
-  const polygon = tileToGeoJSON([x, y, z].map((x) => Number(x)));
+  const polygon = tileToGeoJSON([x, y, z]);
 
   // Load tiles collection to filter
   const tiles = await load_hansen_tiles(polygon);
@@ -134,12 +149,13 @@ export async function generate_image(
 }
 
 // Function to generate hansen data analysis
-export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
-  // Read geojson from body
-  const { geojson } = req.body as {
-    geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }>;
-  };
-
+export async function hansen_layer({
+  geojson,
+  tmpFolder,
+}: {
+  geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }>;
+  tmpFolder: string;
+}) {
   // Save it as geojson file
   const geojsonFile = `${tmpFolder}/roi.geojson`;
   await writeFile(geojsonFile, JSON.stringify(geojson));
@@ -165,12 +181,6 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
     warp_image(polygonBounds, 'treecover2000', tiles, tmpFolder, shape, geojsonFile),
     warp_image(polygonBounds, 'lossyear', tiles, tmpFolder, shape, geojsonFile),
   ]);
-
-  // Run analysis
-  const years: number[] = [];
-  for (let year = 2000; year <= 2023; year++) {
-    years.push(year);
-  }
 
   // Run promise for all
   console.log('Generate forest cover per year');
@@ -203,23 +213,34 @@ export async function hansen_data(req: FastifyRequest, tmpFolder: string) {
   await execute_process('gdalbuildvrt', ['-separate', forestYearsVrt, forestAreaPerYear.join(' ')]);
 
   // Make the vrt into tif
+  console.log('Make it into tif');
   const forestYearsTif = `${tmpFolder}/forest_years.tif`;
+  await execute_process('gdal_translate', [
+    '-of',
+    'COG',
+    '-co',
+    'COMPRESS=ZSTD',
+    forestYearsVrt,
+    forestYearsTif,
+  ]);
+
+  return forestYearsTif;
+}
+
+export async function hansen_data({
+  geojson,
+  tmpFolder,
+}: {
+  geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }>;
+  tmpFolder: string;
+}) {
+  // Generate the forest years tif
+  const forestYearsTif = await hansen_layer({ geojson, tmpFolder });
 
   // Calculate the statistics
+  console.log('Calculate forest statistics');
   const statistics = `${tmpFolder}/statistics.json`;
-
-  console.log('Calculate forest statistics and make it into tif');
-  await Promise.all([
-    execute_process('gdalinfo', ['-json', '-stats', '-hist', forestYearsVrt, '>', statistics]),
-    execute_process('gdal_translate', [
-      '-of',
-      'COG',
-      '-co',
-      'COMPRESS=ZSTD',
-      forestYearsVrt,
-      forestYearsTif,
-    ]),
-  ]);
+  await execute_process('gdalinfo', ['-json', '-stats', '-hist', forestYearsTif, '>', statistics]);
 
   // Calculate the area of forest data
   const areaHa = JSON.parse(await readFile(statistics, 'utf8'))['bands'].map(

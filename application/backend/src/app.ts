@@ -1,11 +1,20 @@
 import fastifyRequestContext from '@fastify/request-context';
+import { bboxPolygon } from '@turf/turf';
 import cluster from 'cluster';
 import { config } from 'dotenv';
 import fastify, { FastifyRequest } from 'fastify';
-import { mkdtemp, rm } from 'fs/promises';
+import { mkdtemp, readFile, rm } from 'fs/promises';
 import cpus from 'os';
 import process from 'process';
-import { generate_image, hansen_data } from './modules/cog';
+import { generate_image, hansen_data, hansen_layer } from './modules/cog';
+import {
+  AnalysisRoute,
+  AnalysisSchema,
+  COGRoute,
+  COGSchema,
+  DownloadRoute,
+  DownloadSchema,
+} from './modules/type_and_schema';
 
 // Run dotenv
 config();
@@ -59,18 +68,47 @@ if (cluster.isPrimary) {
     });
   });
 
-  // Get route
-  app.get('/cog/:z/:x/:y', async (req, res) => {
+  // Route for visualization using COG to webmap
+  app.get<COGRoute>('/cog/:z/:x/:y', COGSchema, async (req, res) => {
+    // Parse the input
+    const { z, x, y } = req.params;
+    const { layer, palette, min, max, year, min_forest_cover } = req.query;
     const tmpFolder = req.requestContext.get('tmpFolder') as string;
-    const image = await generate_image(req, tmpFolder);
+    const image = await generate_image({
+      z,
+      x,
+      y,
+      layer,
+      palette,
+      min,
+      max,
+      year,
+      min_forest_cover,
+      tmpFolder,
+    });
     res.status(200).type('webp').send(image);
   });
 
   // Analysis route
-  app.post('/analysis', async (req, res) => {
+  app.post<AnalysisRoute>('/analysis', AnalysisSchema, async (req, res) => {
+    // Read geojson from body
+    const { geojson } = req.body;
     const tmpFolder = req.requestContext.get('tmpFolder') as string;
-    const data = await hansen_data(req, tmpFolder);
+    const data = await hansen_data({ geojson, tmpFolder });
     res.status(200).type('application/json').send(data);
+  });
+
+  // Analysis route
+  app.get<DownloadRoute>('/download', DownloadSchema, async (req, res) => {
+    const bounds = req.query.bounds.split(',').map((x) => Number(x));
+    const geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }> = {
+      type: 'FeatureCollection',
+      features: [bboxPolygon(bounds as [number, number, number, number])],
+    };
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    const image_path = await hansen_layer({ geojson, tmpFolder });
+    const image_buffer = await readFile(image_path);
+    res.status(200).type('image/tif').send(image_buffer);
   });
 
   // On close
