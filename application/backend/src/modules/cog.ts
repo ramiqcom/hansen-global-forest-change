@@ -120,8 +120,6 @@ export async function generate_image(
   await execute_process('gdal_translate', [
     '-of',
     'WEBP',
-    '-co',
-    'QUALITY=90',
     '-outsize',
     256,
     256,
@@ -255,7 +253,7 @@ async function warp_image(
   layer: string,
   tiles: string[],
   tmpFolder: string,
-  shapes: number[] = [512, 512],
+  shapes: number[] = [256, 256],
   cutline?: string,
 ) {
   // Bounds
@@ -287,8 +285,6 @@ async function warp_image(
 
   if (cutline) {
     await execute_process('gdalwarp', [
-      '-r',
-      'bilinear',
       '-te',
       bounds[0],
       bounds[1],
@@ -311,8 +307,6 @@ async function warp_image(
     ]);
   } else {
     await execute_process('gdal_translate', [
-      '-r',
-      'bilinear',
       '-projwin',
       bounds[0],
       bounds[3],

@@ -1,7 +1,7 @@
 import fastifyRequestContext from '@fastify/request-context';
 import cluster from 'cluster';
 import { config } from 'dotenv';
-import fastify from 'fastify';
+import fastify, { FastifyRequest } from 'fastify';
 import { mkdtemp, rm } from 'fs/promises';
 import cpus from 'os';
 import process from 'process';
@@ -74,22 +74,16 @@ if (cluster.isPrimary) {
   });
 
   // On close
-  app.addHook('onResponse', async (req, res) => {
-    // Delete temp folder
-    const tmpFolder = req.requestContext.get('tmpFolder') as string;
-    await rm(tmpFolder, { recursive: true, force: true });
-  });
+  app.addHook('onResponse', async (req) => await deleteTempFolder(req));
 
   // On error
-  app.addHook('onError', async (req) => {
-    const tmpFolder = req.requestContext.get('tmpFolder') as string;
-    await rm(tmpFolder, { recursive: true, force: true });
-  });
+  app.addHook('onError', async (req) => await deleteTempFolder(req));
 
   // Error handler
   app.setErrorHandler(async (error, req, res) => {
     const { message } = error;
     console.error(message);
+    await deleteTempFolder(req);
     res.status(404).send({ message, status: 404 }).header('Content-Type', 'application/json');
   });
 
@@ -103,4 +97,9 @@ if (cluster.isPrimary) {
   }
 
   console.log(`Worker ${process.pid} started`);
+}
+
+async function deleteTempFolder(req: FastifyRequest) {
+  const tmpFolder = req.requestContext.get('tmpFolder') as string;
+  await rm(tmpFolder, { recursive: true, force: true });
 }
