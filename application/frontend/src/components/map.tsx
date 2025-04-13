@@ -44,6 +44,18 @@ export default function MapCanvas() {
         setMapLoaded(true);
         setStatus({ message: 'Map loaded', type: 'success' });
       });
+
+      map.on('data', (e) => {
+        // @ts-ignore
+        if (e.sourceId == cogId) {
+          // @ts-ignore
+          if (!e.isSourceLoaded) {
+            setStatus({ message: `${layer.label} is loading...`, type: 'process' });
+          } else {
+            setStatus({ message: `${layer.label} is loaded`, type: 'success' });
+          }
+        }
+      });
     } catch ({ message }) {
       setStatus({ message, type: 'failed' });
     }
