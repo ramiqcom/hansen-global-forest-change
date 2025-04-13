@@ -137,6 +137,7 @@ if (cluster.isPrimary) {
     console.log(`Listening on ${address}`);
   } catch (err) {
     console.error(err);
+    process.exit(1);
   }
 
   console.log(`Worker ${process.pid} started`);
