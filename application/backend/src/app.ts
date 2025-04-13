@@ -50,13 +50,6 @@ if (cluster.isPrimary) {
     // Temporary directory
     const tmpFolder = await mkdtemp('temp_');
     request.requestContext.set('tmpFolder', tmpFolder);
-
-    request.raw.on('close', async () => {
-      if (request.raw.aborted) {
-        await rm(tmpFolder, { recursive: true, force: true });
-        throw new Error('Request is aborted');
-      }
-    });
   });
 
   // Get route
