@@ -53,7 +53,9 @@ if (cluster.isPrimary) {
     request.requestContext.set('tmpFolder', tmpFolder);
 
     request.raw.on('close', async () => {
-      await deleteTempFolder(undefined, tmpFolder);
+      if (request.raw.aborted) {
+        await deleteTempFolder(undefined, tmpFolder);
+      }
     });
   });
 
