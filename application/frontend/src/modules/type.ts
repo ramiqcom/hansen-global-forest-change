@@ -6,7 +6,7 @@ export type SetState<T> = Dispatch<SetStateAction<T>>;
 
 export type Option = { label: string; value: any; [key: string]: any };
 export type Options = Option[];
-export type Status = { message: string; type: 'success' | 'failed' | 'process' };
+export type Status = { message: string; type: 'success' | 'failed' | 'process' | 'other' };
 
 export type MainStore = {
   map: Map;

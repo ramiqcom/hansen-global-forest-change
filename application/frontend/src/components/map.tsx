@@ -50,9 +50,9 @@ export default function MapCanvas() {
         if (e.sourceId == cogId) {
           // @ts-ignore
           if (!e.isSourceLoaded) {
-            setStatus({ message: `${layer.label} is loading...`, type: 'process' });
+            setStatus({ message: `${layer.label} is loading...`, type: 'other' });
           } else {
-            setStatus({ message: `${layer.label} is loaded`, type: 'success' });
+            setStatus({ message: `${layer.label} is loaded`, type: 'other' });
           }
         }
       });
