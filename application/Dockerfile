@@ -1,15 +1,5 @@
 # Using debian sid to get the latest GDAL version (>3.10)
-FROM debian:sid-slim
-
-# Update the linux
-RUN apt-get update -y --fix-missing && apt-get upgrade -y
-
-# Install CURL and GDAL
-RUN apt-get install -y curl gdal-bin libgdal-dev
-
-# Install Nodejs 20
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x -o nodesource_setup.sh \
-    && bash nodesource_setup.sh && apt-get install -y nodejs
+FROM gcr.io/ramadhan-s4g/eo-base:latest
 
 # Change working directory
 WORKDIR /usr/src/app
