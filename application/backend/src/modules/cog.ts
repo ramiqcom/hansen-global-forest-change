@@ -38,6 +38,7 @@ export async function generate_image({
   year,
   min_forest_cover,
   tmpFolder,
+  signal,
 }: {
   z: number;
   x: number;
@@ -46,9 +47,10 @@ export async function generate_image({
   palette: string;
   min: number;
   max: number;
+  tmpFolder: string;
   year?: number;
   min_forest_cover?: number;
-  tmpFolder: string;
+  signal?: AbortSignal;
 }): Promise<Buffer<ArrayBufferLike>> {
   // Polygon based on tile
   const polygon = tileToGeoJSON([x, y, z]);
@@ -76,8 +78,8 @@ export async function generate_image({
     // Mask non forest based on year
     // Generate forest loss layer
     const [treecover2000_tif, forest_loss_tif] = await Promise.all([
-      warp_image(polygon, 'treecover2000', tiles, tmpFolder),
-      warp_image(polygon, 'lossyear', tiles, tmpFolder),
+      warp_image(polygon, 'treecover2000', tiles, tmpFolder, undefined, undefined, signal),
+      warp_image(polygon, 'lossyear', tiles, tmpFolder, undefined, undefined, signal),
       writeFile(colorFile, colorMap),
     ]);
 
@@ -101,7 +103,7 @@ export async function generate_image({
     tif = masked_tif;
   } else {
     const [forest_loss_tif] = await Promise.all([
-      warp_image(polygon, layer, tiles, tmpFolder),
+      warp_image(polygon, layer, tiles, tmpFolder, undefined, undefined, signal),
       writeFile(colorFile, colorMap),
     ]);
     tif = forest_loss_tif;
@@ -115,32 +117,33 @@ export async function generate_image({
 
   // Run alpha and colored data
   await Promise.all([
-    execute_process('gdal_calc', [
-      '-A',
-      tif,
-      `--outfile=${alpha}`,
-      `--calc="(A!=0)*255"`,
-      '--type=Byte',
-      '--hideNoData',
-    ]),
-    execute_process('gdaldem', ['color-relief', tif, colorFile, colored, '-of', 'WEBP', '-b', 1]),
+    execute_process(
+      'gdal_calc',
+      ['-A', tif, `--outfile=${alpha}`, `--calc="(A!=0)*255"`, '--type=Byte', '--hideNoData'],
+      signal,
+    ),
+    execute_process(
+      'gdaldem',
+      ['color-relief', tif, colorFile, colored, '-of', 'WEBP', '-b', 1],
+      signal,
+    ),
   ]);
 
   // Combine with alpha band
   const withAlpha = `${tmpFolder}/withAlpha.vrt`;
-  await execute_process('gdalbuildvrt', ['-separate', '-overwrite', withAlpha, colored, alpha]);
+  await execute_process(
+    'gdalbuildvrt',
+    ['-separate', '-overwrite', withAlpha, colored, alpha],
+    signal,
+  );
 
   // Rescale the image
   const rescale = `${tmpFolder}/rescale.webp`;
-  await execute_process('gdal_translate', [
-    '-of',
-    'WEBP',
-    '-outsize',
-    256,
-    256,
-    withAlpha,
-    rescale,
-  ]);
+  await execute_process(
+    'gdal_translate',
+    ['-of', 'WEBP', '-outsize', 256, 256, withAlpha, rescale],
+    signal,
+  );
 
   // Open the image
   const bufferImage = await readFile(rescale);
@@ -261,6 +264,7 @@ async function warp_image(
   tmpFolder: string,
   shapes: number[] = [256, 256],
   cutline?: string,
+  signal?: AbortSignal,
 ) {
   // Bounds
   const bounds = bbox(polygon);
@@ -290,40 +294,48 @@ async function warp_image(
   const tif = `${tmpFolder}/${layer}_image.tif`;
 
   if (cutline) {
-    await execute_process('gdalwarp', [
-      '-te',
-      bounds[0],
-      bounds[1],
-      bounds[2],
-      bounds[3],
-      '-ts',
-      shapes[1],
-      shapes[0],
-      '-cutline',
-      cutline,
-      '-crop_to_cutline',
-      '-overwrite',
-      '-wm',
-      '8G',
-      '-multi',
-      '-wo',
-      'NUM_THREADS=ALL_CPUS',
-      layerPath,
-      tif,
-    ]);
+    await execute_process(
+      'gdalwarp',
+      [
+        '-te',
+        bounds[0],
+        bounds[1],
+        bounds[2],
+        bounds[3],
+        '-ts',
+        shapes[1],
+        shapes[0],
+        '-cutline',
+        cutline,
+        '-crop_to_cutline',
+        '-overwrite',
+        '-wm',
+        '8G',
+        '-multi',
+        '-wo',
+        'NUM_THREADS=ALL_CPUS',
+        layerPath,
+        tif,
+      ],
+      signal,
+    );
   } else {
-    await execute_process('gdal_translate', [
-      '-projwin',
-      bounds[0],
-      bounds[3],
-      bounds[2],
-      bounds[1],
-      '-outsize',
-      shapes[1],
-      shapes[0],
-      layerPath,
-      tif,
-    ]);
+    await execute_process(
+      'gdal_translate',
+      [
+        '-projwin',
+        bounds[0],
+        bounds[3],
+        bounds[2],
+        bounds[1],
+        '-outsize',
+        shapes[1],
+        shapes[0],
+        layerPath,
+        tif,
+      ],
+      signal,
+    );
   }
 
   return tif;

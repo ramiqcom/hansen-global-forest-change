@@ -1,9 +1,13 @@
 import archiver from 'archiver';
 import { exec } from 'child_process';
 import { createWriteStream } from 'fs';
-export async function execute_process(cmd: string, args: any[]): Promise<number> {
+export async function execute_process(
+  cmd: string,
+  args: any[],
+  signal?: AbortSignal,
+): Promise<number> {
   return await new Promise((resolve, reject) => {
-    exec(`${cmd} ${args.join(' ')}`, (error, stdout, stderr) => {
+    exec(`${cmd} ${args.join(' ')}`, { signal }, (error, stdout, stderr) => {
       if (stderr) {
         console.error(stderr);
       }

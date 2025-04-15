@@ -34,7 +34,7 @@ export default function MapCanvas() {
         center: [116, 0],
         maxZoom: 20,
         minZoom: 1,
-        zoom: 8,
+        zoom: 4,
         style: {
           projection: {
             type: 'globe',
@@ -67,7 +67,7 @@ export default function MapCanvas() {
   useEffect(() => {
     if (mapLoaded && map) {
       const source = map.getSource(cogId) as RasterTileSource;
-      let mapQuery = `cog/{z}/{x}/{y}?layer=${layer.value}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`;
+      let mapQuery = `/cog/tilejson.json?layer=${layer.value}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`;
 
       // Additional query
       if (layer.value == 'forest_cover' || layer.value == 'treecover2000') {
@@ -80,16 +80,16 @@ export default function MapCanvas() {
 
       // Change or add layers
       if (source) {
-        map.off('data', loadingLayer);
         map.removeLayer(cogId);
         map.removeSource(cogId);
+        map.off('data', loadingLayer);
       }
 
       // When the map is fully loaded, load the hansen forest cover data
       map.addSource(cogId, {
         type: 'raster',
         tileSize: 256,
-        tiles: [mapQuery],
+        url: mapQuery,
       });
 
       map.addLayer({

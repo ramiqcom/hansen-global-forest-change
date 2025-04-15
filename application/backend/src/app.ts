@@ -1,8 +1,7 @@
-import fastifyRequestContext from '@fastify/request-context';
 import { bboxPolygon } from '@turf/turf';
 import cluster from 'cluster';
 import { config } from 'dotenv';
-import fastify, { FastifyRequest } from 'fastify';
+import fastify from 'fastify';
 import { mkdtemp, readFile, rm } from 'fs/promises';
 import cpus from 'os';
 import process from 'process';
@@ -28,12 +27,6 @@ const host = '0.0.0.0';
 // CPU
 const numCPUs = cpus.availableParallelism();
 
-declare module '@fastify/request-context' {
-  interface RequestContextData {
-    tmpFolder: string;
-  }
-}
-
 // Create cluster
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -53,24 +46,20 @@ if (cluster.isPrimary) {
     trustProxy: true,
   });
 
-  app.register(fastifyRequestContext);
-
-  // If the request is aborted then throw error
-  app.addHook('onRequest', async (request, reply) => {
-    // Temporary directory
-    const tmpFolder = await mkdtemp('temp_');
-    request.requestContext.set('tmpFolder', tmpFolder);
-
-    request.raw.on('close', async () => {
-      await deleteTempFolder(undefined, tmpFolder);
-    });
-  });
-
   // Route for visualization using COG to webmap
   app.get<COGRoute>('/cog/:z/:x/:y', COGSchema, async (req, res) => {
-    const tmpFolder = req.requestContext.get('tmpFolder') as string;
-
+    const tmpFolder = await mkdtemp('temp');
+    const controller = new AbortController();
+    const signal = controller.signal;
     try {
+      // When the request is aborted, abort the signal
+      req.raw.on('close', async () => {
+        if (req.raw.aborted) {
+          controller.abort();
+          await rm(tmpFolder, { recursive: true, force: true });
+        }
+      });
+
       // Parse the input
       const { z, x, y } = req.params;
       const { layer, palette, min, max, year, min_forest_cover } = req.query;
@@ -85,30 +74,34 @@ if (cluster.isPrimary) {
         year,
         min_forest_cover,
         tmpFolder,
+        signal,
       });
       res.status(200).type('webp').send(image);
+    } catch ({ message }) {
+      throw new Error(message);
     } finally {
-      await deleteTempFolder(req);
+      await rm(tmpFolder, { recursive: true, force: true });
     }
   });
 
   // Analysis route
   app.post<AnalysisRoute>('/analysis', AnalysisSchema, async (req, res) => {
-    const tmpFolder = req.requestContext.get('tmpFolder') as string;
-
+    const tmpFolder = await mkdtemp('temp');
     try {
       // Read geojson from body
       const { geojson } = req.body;
       const data = await hansen_data({ geojson, tmpFolder });
       res.status(200).type('application/json').send(data);
+    } catch ({ message }) {
+      throw new Error(message);
     } finally {
-      await deleteTempFolder(req);
+      await rm(tmpFolder, { recursive: true, force: true });
     }
   });
 
   // Analysis route
   app.get<DownloadRoute>('/download', DownloadSchema, async (req, res) => {
-    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    const tmpFolder = await mkdtemp('temp');
     try {
       const bounds = req.query.bounds.split(',').map((x) => Number(x));
       const geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }> = {
@@ -118,17 +111,11 @@ if (cluster.isPrimary) {
       const image_path = await hansen_layer({ geojson, tmpFolder });
       const image_buffer = await readFile(image_path);
       res.status(200).type('image/tif').send(image_buffer);
+    } catch ({ message }) {
+      throw new Error(message);
     } finally {
-      await deleteTempFolder(req);
+      await rm(tmpFolder, { recursive: true, force: true });
     }
-  });
-
-  // Error handler
-  app.setErrorHandler(async (error, req, res) => {
-    await deleteTempFolder(req);
-    const { message } = error;
-    console.error(message);
-    res.status(404).send({ message, status: 404 }).header('Content-Type', 'application/json');
   });
 
   // Run the appss
@@ -141,13 +128,4 @@ if (cluster.isPrimary) {
   }
 
   console.log(`Worker ${process.pid} started`);
-}
-
-async function deleteTempFolder(req?: FastifyRequest, folder?: string) {
-  if (folder) {
-    await rm(folder, { recursive: true, force: true });
-  } else if (req) {
-    const tmpFolder = req.requestContext.get('tmpFolder') as string;
-    await rm(tmpFolder, { recursive: true, force: true });
-  }
 }
