@@ -141,7 +141,7 @@ function Analysis() {
         ) : null}
       </div>
       {dataTable ? (
-        <div className='flexible small-gap wide'>
+        <div className='flexible vertical small-gap'>
           <canvas
             id={chartId}
             hidden={typeof dataTable == 'undefined' || status.type == 'process'}
