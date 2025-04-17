@@ -2,6 +2,7 @@
 __pycache__
 .env
 *temp*
+*tmp*
 
 node_modules
 .next
