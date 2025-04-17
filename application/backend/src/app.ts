@@ -51,7 +51,6 @@ if (cluster.isPrimary) {
 
   app.after(() => {
     app.gracefulShutdown((signal, next) => {
-      app.log.info('Received signal to shutdown: %s', signal);
       next();
     });
   });
