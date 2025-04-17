@@ -7,18 +7,38 @@ export default function Panel() {
   const { status } = useContext(Store);
 
   return (
-    <div id='panel' className='flexible vertical gap'>
-      <div className='title'>Hansen Global Forest Change</div>
-      <Analysis />
-      <Layers />
-      <div
-        style={{
-          textAlign: 'center',
-          color:
-            status.type == 'success' ? 'lightgreen' : status.type == 'failed' ? 'red' : 'lightblue',
-        }}
-      >
-        {status.message}
+    <div className='float top-right'>
+      <div id='panel' className='flexible vertical gap'>
+        <div className='title'>Hansen Global Forest Change</div>
+        <Analysis />
+        <Layers />
+        <div
+          style={{
+            textAlign: 'center',
+            color:
+              status.type == 'success'
+                ? 'lightgreen'
+                : status.type == 'failed'
+                  ? 'red'
+                  : 'lightblue',
+          }}
+        >
+          {status.message}
+        </div>
+
+        <div style={{ fontSize: 'smaller' }}>
+          <div style={{ fontWeight: 'bold' }}>Source</div> Hansen, M. C., P. V. Potapov, R. Moore,
+          M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau, S. V. Stehman, S. J. Goetz, T. R.
+          Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice, and J. R. G. Townshend. 2013.
+          High-Resolution Global Maps of 21st-Century Forest Cover Change. Science 342 (15
+          November): 850-53. Data available on-line from:{' '}
+          <a
+            style={{ color: 'lightskyblue', fontSize: 'smaller' }}
+            href='https://glad.earthengine.app/view/global-forest-change.'
+          >
+            https://glad.earthengine.app/view/global-forest-change.
+          </a>
+        </div>
       </div>
     </div>
   );

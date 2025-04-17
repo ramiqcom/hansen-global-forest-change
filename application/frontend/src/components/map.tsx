@@ -6,17 +6,17 @@ import { useContext, useEffect, useState } from 'react';
 
 export default function MapCanvas() {
   // All the stored states
-  const { map, setMap, geojson, setStatus, year, layer, minForestCover } = useContext(Store);
+  const { map, setMap, geojson, setStatus, year, layer, minForestCover, layers } =
+    useContext(Store);
 
   const [mapLoaded, setMapLoaded] = useState(false);
 
   const divId = 'map';
-  const cogId = 'cog';
   const geojsonSourceId = 'geojson';
 
-  function loadingLayer(e: MapDataEvent) {
+  function loadingLayer(e: MapDataEvent, layerId: string) {
     // @ts-ignore
-    if (e.sourceId == cogId) {
+    if (e.sourceId == layerId) {
       // @ts-ignore
       if (!e.isSourceLoaded) {
         setStatus({ message: `${layer.label} is loading...`, type: 'other' });
@@ -25,7 +25,6 @@ export default function MapCanvas() {
       }
     }
   }
-
   // Load maplibre at the first time
   useEffect(() => {
     try {
@@ -56,8 +55,6 @@ export default function MapCanvas() {
         setMapLoaded(true);
         setStatus({ message: 'Map loaded', type: 'success' });
       });
-
-      map.on('data', loadingLayer);
     } catch ({ message }) {
       setStatus({ message, type: 'failed' });
     }
@@ -65,8 +62,18 @@ export default function MapCanvas() {
 
   // Change layer
   useEffect(() => {
-    if (mapLoaded && map) {
-      const source = map.getSource(cogId) as RasterTileSource;
+    if (mapLoaded && map && layer.value) {
+      layers.map((dict) => {
+        if (map.getSource(dict.value)) {
+          map.setLayoutProperty(
+            dict.value,
+            'visibility',
+            layer.value == dict.value ? 'visible' : 'none',
+          );
+        }
+      });
+
+      const source = map.getSource(layer.value) as RasterTileSource;
       let mapQuery = `/cog/tilejson.json?layer=${layer.value}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`;
 
       // Additional query
@@ -78,27 +85,24 @@ export default function MapCanvas() {
         mapQuery = `${mapQuery}&min_forest_cover=${minForestCover}`;
       }
 
-      // Change or add layers
-      if (source) {
-        map.removeLayer(cogId);
-        map.removeSource(cogId);
-        map.off('data', loadingLayer);
+      if (!source) {
+        // When the map is fully loaded, load the hansen forest cover data
+        map.addSource(layer.value, {
+          type: 'raster',
+          tileSize: 256,
+          url: mapQuery,
+        });
+
+        map.addLayer({
+          source: layer.value,
+          id: layer.value,
+          type: 'raster',
+        });
+
+        map.on('data', (e) => loadingLayer(e, layer.value));
+      } else {
+        map.setLayoutProperty(layer.value, 'visibility', 'visible');
       }
-
-      // When the map is fully loaded, load the hansen forest cover data
-      map.addSource(cogId, {
-        type: 'raster',
-        tileSize: 256,
-        url: mapQuery,
-      });
-
-      map.addLayer({
-        source: cogId,
-        id: cogId,
-        type: 'raster',
-      });
-
-      map.on('data', loadingLayer);
     }
   }, [mapLoaded, layer, year, minForestCover]);
 

@@ -2,6 +2,7 @@ import { bboxPolygon } from '@turf/turf';
 import cluster from 'cluster';
 import { config } from 'dotenv';
 import fastify from 'fastify';
+import fastifyGracefulShutdown from 'fastify-graceful-shutdown';
 import { mkdtemp, readFile, rm } from 'fs/promises';
 import cpus from 'os';
 import process from 'process';
@@ -44,6 +45,15 @@ if (cluster.isPrimary) {
   // App setting
   const app = fastify({
     trustProxy: true,
+  });
+
+  app.register(fastifyGracefulShutdown);
+
+  app.after(() => {
+    app.gracefulShutdown((signal, next) => {
+      app.log.info('Received signal to shutdown: %s', signal);
+      next();
+    });
   });
 
   // Route for visualization using COG to webmap

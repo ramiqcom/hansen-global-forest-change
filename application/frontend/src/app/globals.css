@@ -194,7 +194,6 @@ button:disabled {
 }
 
 .section {
-  background-color: #103f1a;
   padding: 1vh;
 }
 
@@ -217,16 +216,22 @@ button:disabled {
 }
 
 #panel {
-  padding: 2vh;
-  width: 25%;
+  padding: 1vh;
+  padding-top: 2vh;
+  padding-bottom: 2vh;
+  width: 35vh;
   overflow-y: auto;
+  background-color: #103f1a;
 }
 
-#float {
+.top-right {
+  right: 2vh;
+  top: 2vh;
+}
+
+.float {
   z-index: 99999;
   position: absolute;
-  margin-top: 2vh;
-  margin-right: 5vh;
 }
 
 #modal {
