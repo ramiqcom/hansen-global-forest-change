@@ -277,17 +277,15 @@ async function warp_image(
 
   if (tiles.length > 1) {
     // Get the layer url
-    const image_urls = tiles
-      .map((tile_id) => `"/vsicurl/${hansen_prefix}${layer}_${tile_id}.tif"`)
-      .join(' ');
+    const image_urls = tiles.map((tile_id) => `/vsicurl/${hansen_prefix}${layer}_${tile_id}.tif`);
 
     // Create VRT
     const vrt = `${tmpFolder}/${layer}_collection.vrt`;
-    await execute_process('gdalbuildvrt', ['-overwrite', vrt, image_urls]);
+    await execute_process('gdalbuildvrt', ['-overwrite', vrt, ...image_urls]);
 
     layerPath = vrt;
   } else {
-    layerPath = `"/vsicurl/${hansen_prefix}${layer}_${tiles[0]}.tif"`;
+    layerPath = `/vsicurl/${hansen_prefix}${layer}_${tiles[0]}.tif`;
   }
 
   // Create an image
