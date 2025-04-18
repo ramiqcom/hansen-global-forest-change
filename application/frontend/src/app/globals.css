@@ -217,9 +217,7 @@ button:disabled {
 }
 
 #panel {
-  padding: 1vh;
-  padding-top: 2vh;
-  padding-bottom: 2vh;
+  padding: 2vh;
   width: 25%;
   overflow-y: auto;
 }

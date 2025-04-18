@@ -7,7 +7,7 @@ export default function Panel() {
   const { status } = useContext(Store);
 
   return (
-    <div id='panel' className='flexible vertical gap center1'>
+    <div id='panel' className='flexible vertical gap'>
       <div className='flexible vertical center1 center2 center3 small-gap'>
         <div className='title'>Hansen Global Forest Change</div>
         <div className='text-center'>
@@ -16,7 +16,6 @@ export default function Panel() {
       </div>
 
       <Analysis />
-
       <Layers />
 
       <div className='flexible center1 center2 center3' style={{ width: '100%' }}>
