@@ -4,6 +4,8 @@
 
 Hi! This repository contain the application scripts to create a [webmap (front-end)](application/frontend) and [tile server (back-end)](application/backend) to visualize [Hansen Global Forest Change 2023 v1.11](https://storage.googleapis.com/earthenginepartners-hansen/GFC-2023-v1.11/download.html) data which is [published by Hansen, Potapov, Moore, Hancher et al.](http://www.sciencemag.org/content/342/6160/850). The difference than the version in the source [download page](https://storage.googleapis.com/earthenginepartners-hansen/GFC-2023-v1.11/download.html) is that the data are retiled into Cloud Optimized GeoTIFF (COG) which can be served on the web without downloading the whole image.
 
+You can try the app here **https://hansen-global-forest-change-frontend-395367171754.europe-west4.run.app/** without cloning and deploy this application yourself!
+
 ### How the application work?
 
 This webmap is made on top of [NextJS](https://nextjs.org/) framework and [MapLibre](https://maplibre.org/) for the web map library. The tile server is made using [Fastify](https://fastify.dev/) web framework where the request of tilejson with tiles format of /{z}/{x}/{y} from the webmap is send to the server. The XYZ tile format then translated into a bounding box generated from [mercantile](https://github.com/mapbox/mercantile). This bounding box then used to filter the tiles from [my hansen tile collection](https://storage.googleapis.com/gee-ramiqcom-bucket/cog_catalog/collections_tiles/hansen_gfc_tiles.geojson) that will refer to a Hansen GFC layer in my cloud storage.
