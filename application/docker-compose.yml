@@ -2,9 +2,9 @@ services:
   hansen-gfc-base:
     platform: linux/amd64
     build: .
-    image: gcr.io/ee-ramiqcom/hansen-global-forest-change:latest
+    image: ramiqcom/hansen-global-forest-change:latest
   hansen-gfc-frontend:
-    image: gcr.io/ee-ramiqcom/hansen-global-forest-change:latest
+    image: ramiqcom/hansen-global-forest-change:latest
     container_name: hansen-gfc-frontend
     ports:
       - 3000:3000
@@ -18,7 +18,7 @@ services:
     mem_limit: 2g
     command: ["npm", "run", "start", '--prefix', "frontend", "--", "--port", "3000"]
   hansen-gfc-backend:
-    image: gcr.io/ee-ramiqcom/hansen-global-forest-change:latest
+    image: ramiqcom/hansen-global-forest-change:latest
     container_name: hansen-gfc-backend
     ports:
       - 8000:8000
