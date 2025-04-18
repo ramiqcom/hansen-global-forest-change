@@ -5,6 +5,7 @@ export async function GET(req: NextRequest) {
     const { nextUrl } = req;
     const { search, searchParams } = nextUrl;
 
+    // Generate tilejson
     const tilejson = {
       tilejson: '3.0.0',
       tiles: [`/cog/{z}/{x}/{y}${search}`],
