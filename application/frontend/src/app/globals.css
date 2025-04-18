@@ -195,6 +195,7 @@ button:disabled {
 
 .section {
   padding: 1vh;
+  background-color: #103f1a;
 }
 
 #loading {
@@ -219,9 +220,8 @@ button:disabled {
   padding: 1vh;
   padding-top: 2vh;
   padding-bottom: 2vh;
-  width: 35vh;
+  width: 25%;
   overflow-y: auto;
-  background-color: #103f1a;
 }
 
 .top-right {

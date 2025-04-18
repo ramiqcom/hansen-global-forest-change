@@ -7,14 +7,24 @@ export default function Panel() {
   const { status } = useContext(Store);
 
   return (
-    <div className='float top-right'>
-      <div id='panel' className='flexible vertical gap'>
+    <div id='panel' className='flexible vertical gap center1'>
+      <div className='flexible vertical center1 center2 center3 small-gap'>
         <div className='title'>Hansen Global Forest Change</div>
-        <Analysis />
-        <Layers />
-        <div
+        <div className='text-center'>
+          NodeJS-based Cloud Optimized GeoTIFF Tile Server and Analysis Application
+        </div>
+      </div>
+
+      <Analysis />
+
+      <Layers />
+
+      <div className='flexible center1 center2 center3' style={{ width: '100%' }}>
+        <input
+          disabled
           style={{
             textAlign: 'center',
+            width: '90%',
             color:
               status.type == 'success'
                 ? 'lightgreen'
@@ -22,15 +32,36 @@ export default function Panel() {
                   ? 'red'
                   : 'lightblue',
           }}
-        >
-          {status.message}
+          type='text'
+          value={status.message}
+        />
+      </div>
+
+      <div style={{ fontSize: 'smaller' }} className='flexible vertical gap'>
+        <div className='flexible vertical center1'>
+          <div style={{ fontWeight: 'bold' }}>Created by Ramadhan</div>
+          <div className='flexible gap' style={{ color: 'lightskyblue' }}>
+            <a style={{ color: 'lightskyblue' }} target='_blank' href='https://github.com/ramiqcom'>
+              GitHub
+            </a>
+            <a
+              style={{ color: 'lightskyblue' }}
+              target='_blank'
+              href='https://linkedin.com/in/ramiqcom'
+            >
+              LinkedIn
+            </a>
+            <a style={{ color: 'lightskyblue' }} target='_blank' href='mailto:ramiqcom@gmail.com'>
+              Email
+            </a>
+          </div>
         </div>
 
-        <div style={{ fontSize: 'smaller' }}>
-          <div style={{ fontWeight: 'bold' }}>Source</div> Hansen, M. C., P. V. Potapov, R. Moore,
-          M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau, S. V. Stehman, S. J. Goetz, T. R.
-          Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice, and J. R. G. Townshend. 2013.
-          High-Resolution Global Maps of 21st-Century Forest Cover Change. Science 342 (15
+        <div>
+          <div style={{ fontWeight: 'bold' }}>Data source</div> Hansen, M. C., P. V. Potapov, R.
+          Moore, M. Hancher, S. A. Turubanova, A. Tyukavina, D. Thau, S. V. Stehman, S. J. Goetz, T.
+          R. Loveland, A. Kommareddy, A. Egorov, L. Chini, C. O. Justice, and J. R. G. Townshend.
+          2013. High-Resolution Global Maps of 21st-Century Forest Cover Change. Science 342 (15
           November): 850-53. Data available on-line from:{' '}
           <a
             style={{ color: 'lightskyblue', fontSize: 'smaller' }}
