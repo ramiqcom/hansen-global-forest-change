@@ -14,6 +14,7 @@ export async function load_hansen_tiles(
   polygon: GeoJSON.Polygon | GeoJSON.Geometry,
 ): Promise<string[]> {
   // Load tiles collection to filter
+  console.log('Filtering Hansen data');
   const tiles = (await (
     await fetch(process.env.HANSEN_TILES_COLLECTION as string)
   ).json()) as GeoJSON.FeatureCollection<any, { string: any }>;
@@ -59,6 +60,7 @@ export async function generate_image({
   const tiles = await load_hansen_tiles(polygon);
 
   // Generate color data
+  console.log('Creating color map');
   const paletteSplit = palette.split(',');
   const interval = Math.abs(Number(min) - Number(max)) / (paletteSplit.length - 1);
   const colorMap = paletteSplit
@@ -77,6 +79,7 @@ export async function generate_image({
   if (layer == 'treecover2000' || layer == 'forest_cover') {
     // Mask non forest based on year
     // Generate forest loss layer
+    console.log('Generating treecover and loss year data');
     const [treecover2000_tif, forest_loss_tif] = await Promise.all([
       warp_image(polygon, 'treecover2000', tiles, tmpFolder, undefined, undefined, signal),
       warp_image(polygon, 'lossyear', tiles, tmpFolder, undefined, undefined, signal),
@@ -90,6 +93,7 @@ export async function generate_image({
 
     // Mask image
     const masked_tif = `${tmpFolder}/masked.tif`;
+    console.log('Masking image');
     await execute_process('gdal_calc', [
       '-A',
       treecover2000_tif,
@@ -102,6 +106,7 @@ export async function generate_image({
     ]);
     tif = masked_tif;
   } else {
+    console.log('Generating forest loss data');
     const [forest_loss_tif] = await Promise.all([
       warp_image(polygon, layer, tiles, tmpFolder, undefined, undefined, signal),
       writeFile(colorFile, colorMap),
@@ -116,6 +121,7 @@ export async function generate_image({
   const colored = `${tmpFolder}/colored.tif`;
 
   // Run alpha and colored data
+  console.log('Creating colored and alpha layer');
   await Promise.all([
     execute_process(
       'gdal_calc',
@@ -130,6 +136,7 @@ export async function generate_image({
   ]);
 
   // Combine with alpha band
+  console.log('Combining colored and alpha layer');
   const withAlpha = `${tmpFolder}/withAlpha.vrt`;
   await execute_process(
     'gdalbuildvrt',
@@ -138,6 +145,7 @@ export async function generate_image({
   );
 
   // Rescale the image
+  console.log('Creating tile image');
   const rescale = `${tmpFolder}/rescale.webp`;
   await execute_process(
     'gdal_translate',
@@ -146,6 +154,7 @@ export async function generate_image({
   );
 
   // Open the image
+  console.log('Read the image');
   const bufferImage = await readFile(rescale);
 
   return bufferImage;
@@ -279,9 +288,13 @@ async function warp_image(
     // Get the layer url
     const image_urls = tiles.map((tile_id) => `/vsicurl/${hansen_prefix}${layer}_${tile_id}.tif`);
 
+    // Save urls as text
+    const images_list = `${tmpFolder}/${layer}_image_list.txt`;
+    await writeFile(images_list, image_urls.join('\n'));
+
     // Create VRT
     const vrt = `${tmpFolder}/${layer}_collection.vrt`;
-    await execute_process('gdalbuildvrt', ['-overwrite', vrt, ...image_urls]);
+    await execute_process('gdalbuildvrt', ['-overwrite', '-input_file_list', images_list, vrt]);
 
     layerPath = vrt;
   } else {

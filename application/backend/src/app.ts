@@ -1,8 +1,8 @@
+import { fastifyRequestContext } from '@fastify/request-context';
 import { bboxPolygon } from '@turf/turf';
 import cluster from 'cluster';
 import { config } from 'dotenv';
 import fastify from 'fastify';
-import fastifyGracefulShutdown from 'fastify-graceful-shutdown';
 import { mkdtemp, readFile, rm } from 'fs/promises';
 import cpus from 'os';
 import process from 'process';
@@ -28,6 +28,13 @@ const host = '0.0.0.0';
 // CPU
 const numCPUs = cpus.availableParallelism();
 
+declare module '@fastify/request-context' {
+  interface RequestContextData {
+    tmpFolder: string;
+    signal: AbortSignal | undefined;
+  }
+}
+
 // Create cluster
 if (cluster.isPrimary) {
   console.log(`Primary ${process.pid} is running`);
@@ -47,85 +54,101 @@ if (cluster.isPrimary) {
     trustProxy: true,
   });
 
-  app.register(fastifyGracefulShutdown);
+  app.register(fastifyRequestContext);
 
-  app.after(() => {
-    app.gracefulShutdown((signal, next) => {
-      next();
+  // Hook when the request is started
+  app.addHook('onRequest', async (req, res) => {
+    console.log('Creating temporary folder');
+    const tmpFolder = await mkdtemp('temp');
+    req.requestContext.set('tmpFolder', tmpFolder);
+
+    const controller = new AbortController();
+    req.requestContext.set('signal', controller.signal);
+
+    req.raw.on('close', () => {
+      console.log('Request is closing');
+
+      if (req.raw.aborted) {
+        console.log('Aborting process');
+        controller.abort();
+      }
     });
   });
 
   // Route for visualization using COG to webmap
   app.get<COGRoute>('/cog/:z/:x/:y', COGSchema, async (req, res) => {
-    const tmpFolder = await mkdtemp('temp');
-    try {
-      const controller = new AbortController();
-      const signal = controller.signal;
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    const signal = req.requestContext.get('signal');
 
-      // When the request is aborted, abort the signal
-      req.raw.on('close', async () => {
-        if (req.raw.aborted) {
-          controller.abort();
-          await rm(tmpFolder, { recursive: true, force: true });
-        }
-      });
+    // Parse the input
+    const { z, x, y } = req.params;
+    const { layer, palette, min, max, year, min_forest_cover } = req.query;
 
-      // Parse the input
-      const { z, x, y } = req.params;
-      const { layer, palette, min, max, year, min_forest_cover } = req.query;
-      const image = await generate_image({
-        z,
-        x,
-        y,
-        layer,
-        palette,
-        min,
-        max,
-        year,
-        min_forest_cover,
-        tmpFolder,
-        signal,
-      });
-      res.status(200).type('webp').send(image);
-    } catch ({ message }) {
-      throw new Error(message);
-    } finally {
-      await rm(tmpFolder, { recursive: true, force: true });
-    }
+    console.log('Generating image');
+    const image = await generate_image({
+      z,
+      x,
+      y,
+      layer,
+      palette,
+      min,
+      max,
+      year,
+      min_forest_cover,
+      tmpFolder,
+      signal,
+    });
+
+    console.log('Deleting temporary folder');
+    await rm(tmpFolder, { recursive: true, force: true });
+
+    console.log('Sending response');
+    res.status(200).type('webp').send(image);
   });
 
   // Analysis route
   app.post<AnalysisRoute>('/analysis', AnalysisSchema, async (req, res) => {
-    const tmpFolder = await mkdtemp('temp');
-    try {
-      // Read geojson from body
-      const { geojson } = req.body;
-      const data = await hansen_data({ geojson, tmpFolder });
-      res.status(200).type('application/json').send(data);
-    } catch ({ message }) {
-      throw new Error(message);
-    } finally {
-      await rm(tmpFolder, { recursive: true, force: true });
-    }
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+
+    // Read geojson from body
+    const { geojson } = req.body;
+
+    console.log('Generating data');
+    const data = await hansen_data({ geojson, tmpFolder });
+
+    console.log('Deleting temporary folder');
+    await rm(tmpFolder, { recursive: true, force: true });
+
+    console.log('Sending response');
+    res.status(200).type('application/json').send(data);
   });
 
   // Analysis route
   app.get<DownloadRoute>('/download', DownloadSchema, async (req, res) => {
-    const tmpFolder = await mkdtemp('temp');
-    try {
-      const bounds = req.query.bounds.split(',').map((x) => Number(x));
-      const geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }> = {
-        type: 'FeatureCollection',
-        features: [bboxPolygon(bounds as [number, number, number, number])],
-      };
-      const image_path = await hansen_layer({ geojson, tmpFolder });
-      const image_buffer = await readFile(image_path);
-      res.status(200).type('image/tif').send(image_buffer);
-    } catch ({ message }) {
-      throw new Error(message);
-    } finally {
-      await rm(tmpFolder, { recursive: true, force: true });
-    }
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    const bounds = req.query.bounds.split(',').map((x) => Number(x));
+    const geojson: GeoJSON.FeatureCollection<any, { [name: string]: any }> = {
+      type: 'FeatureCollection',
+      features: [bboxPolygon(bounds as [number, number, number, number])],
+    };
+
+    console.log('Generating layer');
+    const image_path = await hansen_layer({ geojson, tmpFolder });
+    const image_buffer = await readFile(image_path);
+
+    console.log('Deleting temporary folder');
+    await rm(tmpFolder, { recursive: true, force: true });
+
+    console.log('Sending response');
+    res.status(200).type('image/tif').send(image_buffer);
+  });
+
+  // Error handling
+  app.setErrorHandler(async ({ message, code }, req, res) => {
+    console.error(message);
+    const tmpFolder = req.requestContext.get('tmpFolder') as string;
+    await rm(tmpFolder, { recursive: true, force: true });
+    res.status(Number(code)).type('application/json').send({ message });
   });
 
   // Run the appss
