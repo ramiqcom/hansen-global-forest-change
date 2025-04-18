@@ -58,9 +58,10 @@ if (cluster.isPrimary) {
   // Route for visualization using COG to webmap
   app.get<COGRoute>('/cog/:z/:x/:y', COGSchema, async (req, res) => {
     const tmpFolder = await mkdtemp('temp');
-    const controller = new AbortController();
-    const signal = controller.signal;
     try {
+      const controller = new AbortController();
+      const signal = controller.signal;
+
       // When the request is aborted, abort the signal
       req.raw.on('close', async () => {
         if (req.raw.aborted) {
