@@ -24,6 +24,10 @@ export async function load_hansen_tiles(
     .filter((feat) => booleanIntersects(feat, polygon))
     .map((feat) => feat['properties']['tile_id']);
 
+  if (tileIds.length < 1) {
+    throw new Error('No tiles!');
+  }
+
   return tileIds;
 }
 
