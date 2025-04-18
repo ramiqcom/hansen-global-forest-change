@@ -33,14 +33,11 @@ export async function GET(req: NextRequest) {
     } else {
       throw new Error((await res.json()).message);
     }
-  } catch ({ name, message }) {
-    // Handle abort specifically
-    if (name === 'AbortError') {
-      console.log('Request aborted by client');
-      return new NextResponse(null, { status: 499 });
-    } else {
-      console.error(message);
-      return new NextResponse(message, { status: 404 });
-    }
+  } catch ({ message }) {
+    console.error(message);
+    return NextResponse.json(
+      { message },
+      { status: 404, headers: { 'Content-Type': 'application/json' } },
+    );
   }
 }
