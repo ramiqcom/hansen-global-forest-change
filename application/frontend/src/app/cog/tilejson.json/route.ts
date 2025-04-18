@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });
-  } catch ({ name, message }) {
+  } catch ({ message }) {
     console.error(message);
     return new NextResponse(message, { status: 404 });
   }

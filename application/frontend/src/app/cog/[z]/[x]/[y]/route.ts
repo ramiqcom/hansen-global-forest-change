@@ -18,8 +18,10 @@ export async function GET(req: NextRequest) {
       { once: true },
     );
 
+    // Request image from COG server
     const res = await fetch(`${process.env.COG_SERVER}${pathname}${search}`, { signal });
 
+    // Check response
     if (res.ok) {
       const image = await res.arrayBuffer();
 
@@ -35,7 +37,6 @@ export async function GET(req: NextRequest) {
     // Handle abort specifically
     if (name === 'AbortError') {
       console.log('Request aborted by client');
-      // Return 499 (Client Closed Request) - though Next.js might not send it
       return new NextResponse(null, { status: 499 });
     } else {
       console.error(message);
