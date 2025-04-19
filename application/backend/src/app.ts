@@ -101,12 +101,14 @@ if (cluster.isPrimary) {
 
     console.log('Sending response');
     res.status(200).type('webp').send(image);
+
+    console.log('Deleting temporary folder');
+    await rm(tmpFolder, { recursive: true, force: true });
   });
 
   // Analysis route
   app.post<AnalysisRoute>('/analysis', AnalysisSchema, async (req, res) => {
     const tmpFolder = req.requestContext.get('tmpFolder') as string;
-
     // Read geojson from body
     const { geojson } = req.body;
 
@@ -115,6 +117,9 @@ if (cluster.isPrimary) {
 
     console.log('Sending response');
     res.status(200).type('application/json').send(data);
+
+    console.log('Deleting temporary folder');
+    await rm(tmpFolder, { recursive: true, force: true });
   });
 
   // Analysis route
@@ -132,16 +137,16 @@ if (cluster.isPrimary) {
 
     console.log('Sending response');
     res.status(200).type('image/tif').send(image_buffer);
+
+    console.log('Deleting temporary folder');
+    await rm(tmpFolder, { recursive: true, force: true });
   });
 
   // Error handling
   app.setErrorHandler(async ({ message }, req, res) => {
     console.error(message);
-    res.status(404).type('application/json').send({ message });
-  });
+    res.status(404).type('text/plain').send(message);
 
-  // Delete folder after a response
-  app.addHook('onResponse', async (req, res) => {
     const tmpFolder = req.requestContext.get('tmpFolder') as string;
     console.log('Deleting temporary folder');
     await rm(tmpFolder, { recursive: true, force: true });

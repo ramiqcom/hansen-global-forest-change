@@ -31,13 +31,13 @@ export async function GET(req: NextRequest) {
         headers: { 'Content-Type': 'image/webp' },
       });
     } else {
-      throw new Error((await res.json()).message);
+      throw new Error(await res.text());
     }
   } catch ({ message }) {
     console.error(message);
-    return NextResponse.json(
-      { message },
-      { status: 404, headers: { 'Content-Type': 'application/json' } },
-    );
+    return new NextResponse(message, {
+      status: 404,
+      headers: { 'Content-Type': 'text/plain' },
+    });
   }
 }

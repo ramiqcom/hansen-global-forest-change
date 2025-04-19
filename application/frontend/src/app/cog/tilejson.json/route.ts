@@ -25,6 +25,6 @@ export async function GET(req: NextRequest) {
     });
   } catch ({ message }) {
     console.error(message);
-    return new NextResponse(message, { status: 404 });
+    return new NextResponse(message, { status: 404, headers: { 'Content-Type': 'text/plain' } });
   }
 }
