@@ -13,6 +13,7 @@ export default function MapCanvas() {
 
   const divId = 'map';
   const geojsonSourceId = 'geojson';
+  const basemapId = 'basemap';
 
   function loadingLayer(e: MapDataEvent, layerId: string) {
     // @ts-ignore
@@ -40,13 +41,13 @@ export default function MapCanvas() {
           },
           version: 8,
           sources: {
-            basemap: {
+            [basemapId]: {
               type: 'raster',
               url: '/basemap',
               tileSize: 256,
             },
           },
-          layers: [{ source: 'basemap', id: 'basemap', type: 'raster' }],
+          layers: [{ source: basemapId, id: basemapId, type: 'raster' }],
         },
       });
       setMap(map);
@@ -63,17 +64,20 @@ export default function MapCanvas() {
   // Change layer
   useEffect(() => {
     if (mapLoaded && map && layer.value) {
-      layers.map((dict) => {
-        if (map.getSource(dict.value)) {
-          map.setLayoutProperty(
-            dict.value,
-            'visibility',
-            layer.value == dict.value ? 'visible' : 'none',
-          );
+      // Source and layer name
+      const layerId = layer.value != 'lossyear' ? `${layer.value}_${year}` : layer.value;
+
+      // Get list of sources
+      const sources = map.getStyle().sources;
+      const sourcesId = Object.keys(sources);
+      sourcesId.map((id) => {
+        if (id != basemapId) {
+          map.setLayoutProperty(id, 'visibility', layerId == id ? 'visible' : 'none');
         }
       });
 
-      const source = map.getSource(layer.value) as RasterTileSource;
+      // Get the sources
+      const source = map.getSource(layerId) as RasterTileSource;
       let mapQuery = `/cog/tilejson.json?layer=${layer.value}&palette=${layer.palette.join(',')}&min=${layer.min}&max=${layer.max}`;
 
       // Additional query
@@ -85,23 +89,24 @@ export default function MapCanvas() {
         mapQuery = `${mapQuery}&min_forest_cover=${minForestCover}`;
       }
 
+      // If the source is not exist yet, add the source else just make it visible
       if (!source) {
         // When the map is fully loaded, load the hansen forest cover data
-        map.addSource(layer.value, {
+        map.addSource(layerId, {
           type: 'raster',
           tileSize: 256,
           url: mapQuery,
         });
 
         map.addLayer({
-          source: layer.value,
-          id: layer.value,
+          source: layerId,
+          id: layerId,
           type: 'raster',
         });
 
-        map.on('data', (e) => loadingLayer(e, layer.value));
+        map.on('data', (e) => loadingLayer(e, layerId));
       } else {
-        map.setLayoutProperty(layer.value, 'visibility', 'visible');
+        map.setLayoutProperty(layerId, 'visibility', 'visible');
       }
     }
   }, [mapLoaded, layer, year, minForestCover]);
