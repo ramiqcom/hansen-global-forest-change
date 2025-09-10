@@ -56,7 +56,7 @@ export async function generate_image({
   year?: number;
   min_forest_cover?: number;
   signal?: AbortSignal;
-}): Promise<Buffer<ArrayBufferLike>> {
+}): Promise<Buffer> {
   // Polygon based on tile
   const polygon = tileToGeoJSON([x, y, z]);
 
@@ -67,11 +67,12 @@ export async function generate_image({
   console.log('Creating color map');
   const paletteSplit = palette.split(',');
   const interval = Math.abs(Number(min) - Number(max)) / (paletteSplit.length - 1);
-  const colorMap = paletteSplit
-    .map(
-      (color, index) => `${Number(min) + interval * index} ${Color(color).rgb().array().join(' ')}`,
-    )
-    .join('\n');
+  const colorList = paletteSplit.map(
+    (color, index) =>
+      `${Number(min) + interval * index} ${Color(color).rgb().array().join(' ')} 255`,
+  );
+  colorList.push('0 0 0 0 0');
+  const colorMap = colorList.join('\n');
 
   // Text file of the color data path
   const colorFile = `${tmpFolder}/color.txt`;
@@ -118,9 +119,6 @@ export async function generate_image({
     tif = forest_loss_tif;
   }
 
-  // Alpha band path
-  const alpha = `${tmpFolder}/alpha.tif`;
-
   // Colored data path
   const colored = `${tmpFolder}/colored.tif`;
 
@@ -128,38 +126,15 @@ export async function generate_image({
   console.log('Creating colored and alpha layer');
   await Promise.all([
     execute_process(
-      'gdal_calc',
-      ['-A', tif, `--outfile=${alpha}`, `--calc="(A!=0)*255"`, '--type=Byte', '--hideNoData'],
-      signal,
-    ),
-    execute_process(
       'gdaldem',
-      ['color-relief', tif, colorFile, colored, '-of', 'WEBP', '-b', 1],
+      ['color-relief', tif, colorFile, colored, '-alpha', '-of', 'WEBP'],
       signal,
     ),
   ]);
 
-  // Combine with alpha band
-  console.log('Combining colored and alpha layer');
-  const withAlpha = `${tmpFolder}/withAlpha.vrt`;
-  await execute_process(
-    'gdalbuildvrt',
-    ['-separate', '-overwrite', withAlpha, colored, alpha],
-    signal,
-  );
-
-  // Rescale the image
-  console.log('Creating tile image');
-  const rescale = `${tmpFolder}/rescale.webp`;
-  await execute_process(
-    'gdal_translate',
-    ['-of', 'WEBP', '-outsize', 256, 256, withAlpha, rescale],
-    signal,
-  );
-
   // Open the image
   console.log('Read the image');
-  const bufferImage = await readFile(rescale);
+  const bufferImage = await readFile(colored);
 
   return bufferImage;
 }

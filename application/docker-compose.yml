@@ -17,6 +17,11 @@ services:
     cpu_count: 1
     mem_limit: 2g
     command: ["npm", "run", "start", '--prefix', "frontend", "--", "--port", "3000"]
+    develop:
+      watch:
+        - action: rebuild
+          path: frontend
+          target: /usr/src/app/frontend
   hansen-gfc-backend:
     image: ramiqcom/hansen-global-forest-change:latest
     container_name: hansen-gfc-backend
@@ -29,6 +34,11 @@ services:
     cpu_count: 8
     mem_limit: 32g
     command: ["npm", "start", '--prefix', "backend", "--", "--port", "8000"]
+    develop:
+      watch:
+        - action: rebuild
+          path: backend
+          target: /usr/src/app/backend
 
 networks:
   mynetwork:
